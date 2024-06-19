@@ -1,5 +1,5 @@
 ## finalprojectdissertation
-#### Creating a Geospatial Map of Light Attenuation from Suspended Sediment Plumes
+# Creating a Geospatial Map of Light Attenuation from Suspended Sediment Plumes
 #### Department of Life Sciences, Texas A&M University - Corpus Christi
 
 <details><summary>OVERVIEW</summary>
