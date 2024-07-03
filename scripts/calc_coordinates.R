@@ -1,5 +1,5 @@
 #### user defined variables ####
-data_path <- "../data/ltloggerdatacapturesummary.csv"
+data_path <- "../data/ltloggerdatacapturesummary_final.csv"
 
 #### PACKAGES ####
 packages_used <- 
@@ -35,10 +35,11 @@ data <-
   clean_names() %>%
   select(-starts_with("x")) %>%
   mutate(
+    angle_radians = angle_degrees * pi / 180,
     # https://chatgpt.com/share/8c1d97f4-8564-42e1-ae35-d11c47f0f473
-    coordx =
+    coord_x =
       case_when(
-        is.na(coordx) & !is.na(coordy) ~
+        is.na(coord_x) & !is.na(coord_y) ~
           type more here,
         TRUE ~
           coordx
