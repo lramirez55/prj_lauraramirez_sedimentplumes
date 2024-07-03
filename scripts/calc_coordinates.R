@@ -40,8 +40,8 @@ data <-
     coord_x =
       case_when(
         is.na(coord_x) & !is.na(coord_y) ~
-          type more here,
+          -(reference_coord_x + distance_m * cos(angle_radians)),
         TRUE ~
-          coordx
+          coord_x
       )
   )
