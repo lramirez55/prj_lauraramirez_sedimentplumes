@@ -1,6 +1,6 @@
 #### user defined variables ####
-data_path_l <- "../data/ltloggerdatacapturesummary_l_ceb.csv"
-data_path <- "../data/ltloggerdatacapturesummary_l_ceb.csv"
+data_path_l <- "../data/ltloggerdatacapturesummary_l_ceb.xlsx"
+data_path <- "../data/ltloggerdatacapturesummary_l_ceb.xlsx"
 
 #### PACKAGES ####
 packages_used <- 
@@ -32,7 +32,7 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 #### READ IN DATA ####
 
 data <-
-  read_csv(
+  read_excel(
     # data_path,
     data_path_l,
     na = c(
@@ -46,7 +46,7 @@ data <-
   select(-starts_with("x")) %>%
   mutate(
     # distance_m = distance_from_reference_ft*0.3048,
-    date = mdy(date),
+    date = ymd(date),
     point_name = str_to_upper(point_name),
     angle_radians = angle_degrees * pi / 180,
     # https://chatgpt.com/share/8c1d97f4-8564-42e1-ae35-d11c47f0f473
