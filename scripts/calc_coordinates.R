@@ -76,7 +76,7 @@ data %>%
   aes(
     x = -coord_x,
     y = coord_y,
-    color = 
+    color = distance_from_disturbance_ft
   ) +
   annotate("segment", x = -300, xend = 0, y = 0, yend = 0, linetype = "dashed", color = "grey") +
   annotate("segment", x = -300, xend = 0, y = 50, yend = 50, linetype = "dashed", color = "grey") +
@@ -89,6 +89,12 @@ data %>%
   geom_line() +
   geom_point() +
   geom_text(aes(label = point_name), vjust = -0.5, hjust = 0.5, size = 3) +
+  scale_color_gradient2(
+    low = "lightblue",
+    mid = "brown",
+    high = "lightblue",
+    midpoint = 0
+  ) +
   theme_classic() +
   facet_wrap(. ~ date + disturbance_id + line_id)
 
