@@ -1,5 +1,5 @@
 #### user defined variables ####
-data_path <- "../data/ltloggerdatacapturesummary_final.csv"
+data_path <- "../data/ltloggerdatacapturesummary_l.csv"
 
 #### PACKAGES ####
 packages_used <- 
