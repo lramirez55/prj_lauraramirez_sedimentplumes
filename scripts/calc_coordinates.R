@@ -71,12 +71,13 @@ data <-
 #### Plot Coordinates ####
 
 data %>%
-  filter(date == "2022-10-01") %>%
+  # filter(date == "2022-10-01") %>%
   ggplot() +
   aes(
     x = -coord_x,
     y = coord_y,
-    color = distance_from_disturbance_ft
+    color = distance_from_disturbance_ft,
+    group = line_id
   ) +
   annotate("segment", x = -300, xend = 0, y = 0, yend = 0, linetype = "dashed", color = "grey") +
   annotate("segment", x = -300, xend = 0, y = 50, yend = 50, linetype = "dashed", color = "grey") +
@@ -96,5 +97,6 @@ data %>%
     midpoint = 0
   ) +
   theme_classic() +
-  facet_wrap(. ~ date + disturbance_id + line_id)
+  facet_wrap(. ~ date + disturbance_id)
+  # facet_grid(date + disturbance_id ~ .)
 
