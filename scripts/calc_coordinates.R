@@ -1,5 +1,6 @@
 #### user defined variables ####
-data_path <- "../data/ltloggerdatacapturesummary_l.csv"
+data_path_l <- "../data/ltloggerdatacapturesummary_l_ceb.csv"
+data_path <- "../data/ltloggerdatacapturesummary_l_ceb.csv"
 
 #### PACKAGES ####
 packages_used <- 
@@ -33,6 +34,7 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 data <-
   read_csv(
     data_path,
+    # data_path_l,
     na = c(
       "na",
       "NA",
@@ -43,22 +45,24 @@ data <-
   clean_names() %>%
   select(-starts_with("x")) %>%
   mutate(
-    # distance_m = distance_ft*0.3048,
+    # distance_m = distance_from_reference_ft*0.3048,
+    date = mdy(date),
+    point_name = str_to_upper(point_name),
     angle_radians = angle_degrees * pi / 180,
     # https://chatgpt.com/share/8c1d97f4-8564-42e1-ae35-d11c47f0f473
     coord_y =
       case_when(
         is.na(coord_y) ~
-          (reference_coord_y + distance_ft * sin(angle_radians)),
+          (reference_coord_y + distance_from_reference_ft * sin(angle_radians)),
         is.na(coord_x) ~
-          (reference_coord_y + distance_ft * sin(angle_radians)),
+          (reference_coord_y + distance_from_reference_ft * sin(angle_radians)),
         TRUE ~
           coord_y
       ),
     coord_x =
       case_when(
         is.na(coord_x) ~
-          -(reference_coord_x + distance_ft * cos(angle_radians)),
+          -(reference_coord_x + distance_from_reference_ft * cos(angle_radians)),
         TRUE ~
           coord_x
       )
@@ -67,12 +71,66 @@ data <-
 #### Plot Coordinates ####
 
 data %>%
+  filter(date == "2022-10-01") %>%
   ggplot() +
   aes(
     x = -coord_x,
     y = coord_y,
     color = line_id
-  ) %>%
-  geom_line() +
+  ) +
+  annotate("segment", x = -300, xend = 0, y = 0, yend = 0, linetype = "dashed", color = "grey") +
+  annotate("segment", x = -300, xend = 0, y = 50, yend = 50, linetype = "dashed", color = "grey") +
+  annotate("segment", x = -300, xend = 0, y = 100, yend = 100, linetype = "dashed", color = "grey") +
+  annotate("segment", x = -300, xend = 0, y = 200, yend = 200, linetype = "dashed", color = "grey") +
+  
+  annotate("segment", x = 0, xend = 0, y = 0, yend = 200, linetype = "dashed", color = "grey") +
+  annotate("segment", x = -100, xend = -100, y = 0, yend = 200, linetype = "dashed", color = "grey") +
+  annotate("segment", x = -200, xend = -200, y = 0, yend = 200, linetype = "dashed", color = "grey") +
+  annotate("segment", x = -300, xend = -300, y = 0, yend = 200, linetype = "dashed", color = "grey") +
+  
+  # geom_hline(
+  #   yintercept = 0,
+  #   linetype= "dashed",
+  #   color = "grey"
+  # ) +
+  # geom_hline(
+  #   yintercept = 50,
+  #   linetype= "dashed",
+  #   color = "grey"
+  # ) +
+# geom_hline(
+#   yintercept = 100,
+#   linetype= "dashed",
+#   color = "grey"
+# ) +
+# geom_hline(
+#   yintercept = 200,
+#   linetype= "dashed",
+#   color = "grey"
+# ) +
+# geom_vline(
+#   xintercept = 0,
+#   linetype= "dashed",
+#   color = "grey"
+# ) +
+# geom_vline(
+#   xintercept = -100,
+#   linetype= "dashed",
+#   color = "grey"
+# ) +
+# geom_vline(
+#   xintercept = -200,
+#   linetype= "dashed",
+#   color = "grey"
+# ) +
+# geom_vline(
+#   xintercept = -300,
+#   linetype= "dashed",
+#   color = "grey"
+# ) +
+geom_line() +
+  geom_point() +
+  geom_text(aes(label = point_name), vjust = -0.5, hjust = 0.5, size = 3) +
   theme_classic() +
   facet_wrap(. ~ date + disturbance_id + line_id)
+
