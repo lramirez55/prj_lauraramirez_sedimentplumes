@@ -1,5 +1,6 @@
 date,disturbance_id,line_id,point_name,point_id,coord_x,coord_y,angle_degrees,distance_from_reference_ft,reference_coord_x,reference_coord_y,light_upstream_reference
 10/1/2022,1,1,a,a_1_1,-25,25,na,na,na,na,yes
+10/1/2022,1,1,dist,a_1_1,-25,25,na,na,na,na,yes
 10/1/2022,1,1,b,b_1_1,na,25,165,20,-25,25,no
 10/1/2022,1,1,c,c_1_1,na,na,165,35,-25,25,no
 10/1/2022,1,1,d,d_1_1,na,na,165,50,-25,25,no
