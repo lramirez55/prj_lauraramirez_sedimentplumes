@@ -43,20 +43,36 @@ data <-
   clean_names() %>%
   select(-starts_with("x")) %>%
   mutate(
+    # distance_m = distance_ft*0.3048,
     angle_radians = angle_degrees * pi / 180,
     # https://chatgpt.com/share/8c1d97f4-8564-42e1-ae35-d11c47f0f473
-    coord_x =
-      case_when(
-        is.na(coord_x) ~
-          -(reference_coord_x + distance_m * cos(angle_radians)),
-        TRUE ~
-          coord_x
-      ),
     coord_y =
       case_when(
         is.na(coord_y) ~
-          -(reference_coord_y + distance_m * sin(angle_radians)),
+          (reference_coord_y + distance_ft * sin(angle_radians)),
+        is.na(coord_x) ~
+          (reference_coord_y + distance_ft * sin(angle_radians)),
         TRUE ~
           coord_y
+      ),
+    coord_x =
+      case_when(
+        is.na(coord_x) ~
+          -(reference_coord_x + distance_ft * cos(angle_radians)),
+        TRUE ~
+          coord_x
       )
   )
+
+#### Plot Coordinates ####
+
+data %>%
+  ggplot() +
+  aes(
+    x = -coord_x,
+    y = coord_y,
+    color = line_id
+  ) %>%
+  geom_line() +
+  theme_classic() +
+  facet_wrap(. ~ date + disturbance_id + line_id)
