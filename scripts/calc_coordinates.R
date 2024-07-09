@@ -33,8 +33,8 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 data <-
   read_csv(
-    data_path,
-    # data_path_l,
+    # data_path,
+    data_path_l,
     na = c(
       "na",
       "NA",
@@ -82,53 +82,11 @@ data %>%
   annotate("segment", x = -300, xend = 0, y = 50, yend = 50, linetype = "dashed", color = "grey") +
   annotate("segment", x = -300, xend = 0, y = 100, yend = 100, linetype = "dashed", color = "grey") +
   annotate("segment", x = -300, xend = 0, y = 200, yend = 200, linetype = "dashed", color = "grey") +
-  
   annotate("segment", x = 0, xend = 0, y = 0, yend = 200, linetype = "dashed", color = "grey") +
   annotate("segment", x = -100, xend = -100, y = 0, yend = 200, linetype = "dashed", color = "grey") +
   annotate("segment", x = -200, xend = -200, y = 0, yend = 200, linetype = "dashed", color = "grey") +
   annotate("segment", x = -300, xend = -300, y = 0, yend = 200, linetype = "dashed", color = "grey") +
-  
-  # geom_hline(
-  #   yintercept = 0,
-  #   linetype= "dashed",
-  #   color = "grey"
-  # ) +
-  # geom_hline(
-  #   yintercept = 50,
-  #   linetype= "dashed",
-  #   color = "grey"
-  # ) +
-# geom_hline(
-#   yintercept = 100,
-#   linetype= "dashed",
-#   color = "grey"
-# ) +
-# geom_hline(
-#   yintercept = 200,
-#   linetype= "dashed",
-#   color = "grey"
-# ) +
-# geom_vline(
-#   xintercept = 0,
-#   linetype= "dashed",
-#   color = "grey"
-# ) +
-# geom_vline(
-#   xintercept = -100,
-#   linetype= "dashed",
-#   color = "grey"
-# ) +
-# geom_vline(
-#   xintercept = -200,
-#   linetype= "dashed",
-#   color = "grey"
-# ) +
-# geom_vline(
-#   xintercept = -300,
-#   linetype= "dashed",
-#   color = "grey"
-# ) +
-geom_line() +
+  geom_line() +
   geom_point() +
   geom_text(aes(label = point_name), vjust = -0.5, hjust = 0.5, size = 3) +
   theme_classic() +
