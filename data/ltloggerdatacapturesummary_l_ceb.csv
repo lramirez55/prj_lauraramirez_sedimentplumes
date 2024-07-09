@@ -6,6 +6,7 @@ date,disturbance_id,line_id,point_name,point_id,coord_x,coord_y,angle_degrees,di
 10/1/2022,1,1,e,e_1_1,na,na,165,75,-25,25,no
 10/1/2022,1,1,f,f_1_1,na,na,165,100,-25,25,no
 10/1/2022,1,1,h,h_1_1,na,na,165,150,-25,25,no
+10/1/2022,1,2,a,a_1_1,-25,25,na,na,na,na,yes
 10/1/2022,1,2,i,i_1_2,na,na,195,35,-25,25,no
 10/1/2022,1,2,j,j_1_2,na,na,195,50,-25,25,no
 10/1/2022,1,2,k,k_1_2,na,na,195,75,-25,25,no
