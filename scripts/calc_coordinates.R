@@ -45,7 +45,7 @@ data <-
   clean_names() %>%
   select(-starts_with("x")) %>%
   mutate(
-    # distance_m = distance_from_reference_ft*0.3048,
+    # distance_m = distance_from_disturbance_ft*0.3048,
     date = ymd(date),
     point_name = str_to_upper(point_name),
     angle_radians = angle_degrees * pi / 180,
@@ -53,16 +53,16 @@ data <-
     coord_y =
       case_when(
         is.na(coord_y) ~
-          (reference_coord_y + distance_from_reference_ft * sin(angle_radians)),
+          (reference_coord_y + distance_from_disturbance_ft * sin(angle_radians)),
         is.na(coord_x) ~
-          (reference_coord_y + distance_from_reference_ft * sin(angle_radians)),
+          (reference_coord_y + distance_from_disturbance_ft * sin(angle_radians)),
         TRUE ~
           coord_y
       ),
     coord_x =
       case_when(
         is.na(coord_x) ~
-          -(reference_coord_x + distance_from_reference_ft * cos(angle_radians)),
+          -(reference_coord_x + distance_from_disturbance_ft * cos(angle_radians)),
         TRUE ~
           coord_x
       )
@@ -76,7 +76,7 @@ data %>%
   aes(
     x = -coord_x,
     y = coord_y,
-    color = line_id
+    color = 
   ) +
   annotate("segment", x = -300, xend = 0, y = 0, yend = 0, linetype = "dashed", color = "grey") +
   annotate("segment", x = -300, xend = 0, y = 50, yend = 50, linetype = "dashed", color = "grey") +
