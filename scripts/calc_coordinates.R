@@ -97,6 +97,6 @@ data %>%
     midpoint = 0
   ) +
   theme_classic() +
-  facet_wrap(. ~ date + disturbance_id)
-  # facet_grid(date + disturbance_id ~ .)
+  # facet_wrap(. ~ date + disturbance_id)
+  facet_grid(date ~ disturbance_id)
 
