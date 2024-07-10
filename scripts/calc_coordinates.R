@@ -71,7 +71,18 @@ data <-
 #### Plot Coordinates ####
 
 data %>%
+  filter(date == "2022-06-03") %>%
+  # filter(date == "2022-07-14") %>%
+  # filter(date == "2022-07-18") %>%
+  # filter(date == "2022-08-27") %>%
+  # filter(date == "2022-09-10") %>%
+  # filter(date == "2022-09-17") %>%
+  # filter(date == "2022-09-25") %>%
   # filter(date == "2022-10-01") %>%
+  # filter(date == "2022-10-05") %>%
+  # filter(date == "2022-10-15") %>%
+  # filter(date == "2022-11-02") %>%
+  # filter(date == "2022-11-09") %>%
   ggplot() +
   aes(
     x = -coord_x,
@@ -89,7 +100,12 @@ data %>%
   annotate("segment", x = -300, xend = -300, y = 0, yend = 200, linetype = "dashed", color = "grey") +
   geom_line() +
   geom_point() +
-  geom_text(aes(label = point_name), vjust = -0.5, hjust = 0.5, size = 3) +
+  geom_text(
+    aes(label = point_name), 
+    vjust = -0.5, 
+    hjust = 0.5, 
+    size = 5
+    ) +
   scale_color_gradient2(
     low = "lightblue",
     mid = "brown",
