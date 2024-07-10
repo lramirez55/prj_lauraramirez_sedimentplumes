@@ -1,6 +1,5 @@
 #### user defined variables ####
-data_path_l <- "../data/ltloggerdatacapturesummary_l_ceb.xlsx"
-data_path <- "../data/ltloggerdatacapturesummary_l_ceb.xlsx"
+data_coordinates_path <- "../data/ltloggerdatacapturesummary_l_ceb.xlsx"
 
 #### PACKAGES ####
 packages_used <- 
@@ -31,10 +30,10 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 #### READ IN DATA ####
 
-data <-
+data_coordinates <-
   read_excel(
     # data_path,
-    data_path_l,
+    data_coordinates_path,
     na = c(
       "na",
       "NA",
@@ -62,7 +61,8 @@ data <-
     coord_x =
       case_when(
         is.na(coord_x) ~
-          -(reference_coord_x + distance_from_disturbance_ft * cos(angle_radians)),
+          # -(reference_coord_x + distance_from_disturbance_ft * cos(angle_radians)),
+          reference_coord_x - (distance_from_disturbance_ft * cos(angle_radians)),
         TRUE ~
           coord_x
       )
@@ -70,19 +70,21 @@ data <-
 
 #### Plot Coordinates ####
 
-data %>%
-  filter(date == "2022-06-03") %>%
+data_coordinates %>%
+  # filter(date == "2022-06-03") %>%
   # filter(date == "2022-07-14") %>%
   # filter(date == "2022-07-18") %>%
   # filter(date == "2022-08-27") %>%
+  
   # filter(date == "2022-09-10") %>%
-  # filter(date == "2022-09-17") %>%
-  # filter(date == "2022-09-25") %>%
+  # filter(date == "2022-09-17") %>% 
+  # filter(date == "2022-09-25") %>% 
   # filter(date == "2022-10-01") %>%
   # filter(date == "2022-10-05") %>%
-  # filter(date == "2022-10-15") %>%
-  # filter(date == "2022-11-02") %>%
-  # filter(date == "2022-11-09") %>%
+  # filter(date == "2022-10-15") %>% # missing x and a
+  # filter(date == "2022-11-02") %>% # missing x and a
+  # filter(date == "2022-11-09") %>% # missing x and needs dist to dist redone
+
   ggplot() +
   aes(
     x = -coord_x,
@@ -102,10 +104,10 @@ data %>%
   geom_point() +
   geom_text(
     aes(label = point_name), 
-    vjust = -0.5, 
-    hjust = 0.5, 
+    vjust = -0.25, 
+    hjust = 1, 
     size = 5
-    ) +
+  ) +
   scale_color_gradient2(
     low = "lightblue",
     mid = "brown",
@@ -115,4 +117,4 @@ data %>%
   theme_classic() +
   # facet_wrap(. ~ date + disturbance_id)
   facet_grid(date ~ disturbance_id)
-
+# 1
