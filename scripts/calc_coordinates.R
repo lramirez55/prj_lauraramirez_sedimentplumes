@@ -83,7 +83,7 @@ data_coordinates %>%
   # filter(date == "2022-10-05") %>%
   # filter(date == "2022-10-15") %>% # missing x and a
   # filter(date == "2022-11-02") %>% # missing x and a
-  # filter(date == "2022-11-09") %>% # missing x and needs dist to dist redone
+  filter(date == "2022-11-09") %>% # missing x and needs dist to dist redone
 
   ggplot() +
   aes(
