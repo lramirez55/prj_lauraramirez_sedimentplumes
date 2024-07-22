@@ -68,6 +68,9 @@ data_coordinates <-
       )
   )
 
+#### Save Coordinates to RData file ####
+save(data_coordinates, file = "data_coordinates.RData")
+
 #### Plot Coordinates ####
 
 data_coordinates %>%
