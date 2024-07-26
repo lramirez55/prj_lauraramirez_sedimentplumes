@@ -216,9 +216,11 @@ data_with_coordinates <- paired_loggers %>%
 # All dates heatmap 
 
 #### Create Heatmap ####
-all_dates_heatmap <- ggplot(data_with_coordinates, aes(x = -coord_x, y = coord_y, color = light_attenuation)) +
-  geom_point(size = 2) + 
-  scale_color_gradient(low = "brown", high = "lightblue", na.value = NA) +
+all_dates_heatmap <- ggplot(data_with_coordinates, aes(x = -coord_x, y = coord_y, fill = light_attenuation)) +
+  #geom_point(size = 2) +
+  geom_tile() + 
+  #scale_color_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
+  scale_fill_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
   scale_x_continuous(limits = c(-300, 0)) +
   labs(
     title = "Heatmap of Light Attenuation: All Dates",
@@ -245,10 +247,12 @@ create_heatmap_for_date <- function(paired_loggers, data_coordinates, specific_d
     left_join(data_coordinates, by = c("point_name", "date"))
   
   # Create heatmap
-  one_date_heatmap <- ggplot(data_with_coordinates, aes(x = -coord_x, y = coord_y, color = light_attenuation)) +
-    geom_point(size = 3) +    # change the number for "size" to change size of data points 
+  one_date_heatmap <- ggplot(data_with_coordinates, aes(x = -coord_x, y = coord_y, fill = light_attenuation)) +
+    #geom_point(size = 3) +    # change the number for "size" to change size of data points 
+    geom_tile() +
     geom_text(aes(label = point_name), vjust = 0.5, hjust = 2.0, size = 5) +
-    scale_color_gradient(low = "brown", high = "lightblue", na.value = NA) +
+    #scale_color_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
+    scale_fill_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
     scale_x_continuous(limits = c(-300, 0)) +
     labs(
       title = paste("Heatmap of Light Attenuation for", specific_date),
@@ -275,5 +279,5 @@ date_1005 <- unique(paired_loggers$date)[9]
 date_1015 <- unique(paired_loggers$date)[10]
 date_1102 <- unique(paired_loggers$date)[11]
 
-create_heatmap_for_date(paired_loggers, data_coordinates, date_1015)
+create_heatmap_for_date(paired_loggers, data_coordinates, date_0603)
 
