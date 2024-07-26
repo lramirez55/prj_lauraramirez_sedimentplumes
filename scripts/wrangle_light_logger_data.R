@@ -196,6 +196,7 @@ paired_loggers <- paired_loggers %>%
     date = as.Date(start_time)
   )
 
+
 ###################################################################################
 
 #### Percent Light Attenuation ####
@@ -216,11 +217,11 @@ data_with_coordinates <- paired_loggers %>%
 # All dates heatmap 
 
 #### Create Heatmap ####
-all_dates_heatmap <- ggplot(data_with_coordinates, aes(x = -coord_x, y = coord_y, fill = light_attenuation)) +
-  #geom_point(size = 2) +
-  geom_tile() + 
-  #scale_color_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
-  scale_fill_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
+all_dates_heatmap <- ggplot(data_with_coordinates, aes(x = -coord_x, y = coord_y, color = light_attenuation)) +
+  geom_point(size = 2) +
+  #geom_tile() + 
+  scale_color_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
+  #scale_fill_gradient(low = "brown", high = "lightblue", na.value = NA, limits = c(-80, 100)) +
   scale_x_continuous(limits = c(-300, 0)) +
   labs(
     title = "Heatmap of Light Attenuation: All Dates",
@@ -280,4 +281,24 @@ date_1015 <- unique(paired_loggers$date)[10]
 date_1102 <- unique(paired_loggers$date)[11]
 
 create_heatmap_for_date(paired_loggers, data_coordinates, date_0603)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_0714)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_0718)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_0827)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_0910)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_0917)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_0925)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_1001)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_1005)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_1015)
+
+create_heatmap_for_date(paired_loggers, data_coordinates, date_1102)
 
