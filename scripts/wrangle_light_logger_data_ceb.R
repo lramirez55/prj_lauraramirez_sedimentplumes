@@ -46,95 +46,6 @@ extract_date_times <-
     )
   }
 
-#### READ IN DATA ####
-
-plan(multisession, workers = parallel::detectCores())
-
-# read in the metadata for the light loggers
-data_light_logger_deployments <-
-  read_excel(
-    # data_path,
-    data_poles_path,
-    sheet = "data_lightloggers",
-    na = c(
-      "na",
-      "NA",
-      "",
-      "?"
-    )
-  ) %>%
-  clean_names() %>%
-  mutate(
-    date = ymd(date),
-    lightlogger_file_path = str_replace(
-      lightlogger_file_path,
-      "^",
-      "../"
-    )
-  ) %>%
-  filter(
-    !str_detect(
-      lightlogger_file_path,
-      "deprecated"
-    )
-  ) %>%
-  mutate(
-    lightlogger_data = future_map(lightlogger_file_path, extract_date_times)
-  ) %>%
-  unnest(cols = c(lightlogger_data)) %>%
-  arrange(
-    date,
-    point_name,
-    logger_number_per_pole,
-    first_date_time
-  )
-
-# read in the metadata for the timing of the disturbance trials
-data_disturbance_times <-
-  read_excel(
-    # data_path,
-    data_poles_path,
-    sheet = "disturbance_periods",
-    na = c(
-      "na",
-      "NA",
-      "",
-      "?"
-    )
-  ) %>%
-  clean_names() %>%
-  mutate(
-    date = ymd(date),
-    start_time = 
-      ymd_hms(
-        str_c(
-          date, 
-          format(
-            start_time, 
-            "%H:%M:%S"
-          )
-        )
-      ),
-    end_time = 
-      ymd_hms(
-        paste(
-          date, 
-          format(
-            end_time, 
-            "%H:%M:%S"
-          )
-        )
-      )
-  )
-
-# join the logger and disturbance metadata
-data_light_loggers <-
-  data_light_logger_deployments %>%
-  left_join(
-    data_disturbance_times,
-    relationship = "many-to-many"
-  )
-
 #### FUNCTION TO READ LIGHT INTENSITY ####
 read_light_intensity <- 
   function(
@@ -241,18 +152,21 @@ calc_light_attenuation <-
       )
   }
 
-#### FUNCTION TO VISUALIZE LIGHT ATTENUATION ####
+#### FUNCTION TO VISUALIZE LIGHT LOGGER DATA ####
 
-visualize_light_attenuation <- 
+visualize_light_logger_data <- 
   function(
     file_path_1,
     file_path_2,
     start_time, 
     end_time,
+    date,
+    point_name,
+    disturbance_number,
     scaling_factor=100
   ) {
     
-    if (is.na(file_path_1) | is.na(file_path_2)) {
+    if (is.na(file_path_1) || is.na(file_path_2)) {
       return(NA)
     }
     
@@ -309,30 +223,125 @@ visualize_light_attenuation <-
         name = "Intensity (lum/ft2)",
         sec.axis = sec_axis(~ . / scaling_factor, name = "Light Attenuation (%)")
       ) +
+      theme_bw() +
       theme(
         axis.title.y.right = element_text(color = "black")
+      ) +
+      labs(
+        title = str_c(
+          date,
+          ", Pole ",
+          point_name,
+          ", Disturbance ",
+          disturbance_number,
+          sep = ""
+        )
       )
     
-    data_12 %>%
-      ggplot() +
-      aes(
-        x=date_time,
-        y=light_attenuation_pct
-      ) +
-      geom_point()
+    # data_12 %>%
+    #   ggplot() +
+    #   aes(
+    #     x=date_time,
+    #     y=light_attenuation_pct
+    #   ) +
+    #   geom_point() +
+    #   geom_smooth()
     
-    # Get light intensity values from the 4th column
-    light_intensity <- as.numeric(filtered_data[[4]])
-    
-    # Return the mean light intensity as a representative value
-    return(mean(light_intensity, na.rm = TRUE))
   }
 
 
-#### Pivot Data to Get Logger 1 and Logger 2 ####
-data_light_loggers_pivot <- 
-  data_light_loggers %>%
-  # select(-lightlogger_file_name) %>%
+#### READ IN DATA ####
+
+plan(multisession, workers = parallel::detectCores())
+
+# read in the metadata for the light loggers
+data_light_logger_deployments <-
+  read_excel(
+    # data_path,
+    data_poles_path,
+    sheet = "data_lightloggers",
+    na = c(
+      "na",
+      "NA",
+      "",
+      "?"
+    )
+  ) %>%
+  clean_names() %>%
+  mutate(
+    date = ymd(date),
+    lightlogger_file_path = str_replace(
+      lightlogger_file_path,
+      "^",
+      "../"
+    )
+  ) %>%
+  filter(
+    !str_detect(
+      lightlogger_file_path,
+      "deprecated"
+    )
+  ) %>%
+  mutate(
+    lightlogger_data = future_map(lightlogger_file_path, extract_date_times)
+  ) %>%
+  unnest(cols = c(lightlogger_data)) %>%
+  arrange(
+    date,
+    point_name,
+    logger_number_per_pole,
+    first_date_time
+  )
+
+# read in the metadata for the timing of the disturbance trials
+data_disturbance_times <-
+  read_excel(
+    # data_path,
+    data_poles_path,
+    sheet = "disturbance_periods",
+    na = c(
+      "na",
+      "NA",
+      "",
+      "?"
+    )
+  ) %>%
+  clean_names() %>%
+  mutate(
+    date = ymd(date),
+    start_time = 
+      ymd_hms(
+        str_c(
+          date, 
+          format(
+            start_time, 
+            "%H:%M:%S"
+          )
+        )
+      ),
+    end_time = 
+      ymd_hms(
+        paste(
+          date, 
+          format(
+            end_time, 
+            "%H:%M:%S"
+          )
+        )
+      )
+  )
+
+
+# join the logger and disturbance metadata
+plan(multisession, workers = parallel::detectCores())
+
+data_light_loggers <-
+  data_light_logger_deployments %>%
+  left_join(
+    data_disturbance_times,
+    relationship = "many-to-many"
+  ) %>%
+  # make each row 1 pole, rather than 1 logger
   pivot_wider(
     names_from = logger_number_per_pole,
     values_from = 
@@ -340,9 +349,7 @@ data_light_loggers_pivot <-
         lightlogger_file_path,
         lightlogger_file_name,
         notes
-      ),
-    # values_fill = NA_character_
-    # names_prefix = "logger_"
+      )
   )  %>%
   mutate(
     across(
@@ -351,14 +358,9 @@ data_light_loggers_pivot <-
         .x, 
         ~ if(is.null(.x)) NA else .x)
     )
-  )
-
-#### Extract Light Intensity Values ####
-plan(multisession, workers = parallel::detectCores())
-
-data_light_loggers_pivot_atten <- 
-  data_light_loggers_pivot %>%
-  head(106) %>%
+  ) %>%
+  # calculate the light attenuation values
+  # head(106) %>%
   mutate(
     light_attenuation_mean = 
       future_pmap_dbl(
@@ -375,7 +377,49 @@ data_light_loggers_pivot_atten <-
           ..4
         )
       ),
+  ) %>%
+  mutate(
+    across(
+      lightlogger_file_path_1:notes_3, 
+      ~ unlist(.x)
+    )
+  ) 
+
+
+#### Visualize Light Logger Data ####
+
+
+plan(multisession, workers = parallel::detectCores())
+
+plots_light_loggers <-
+  data_light_loggers %>%
+  # head(20) %>%
+  select(
+    lightlogger_file_path_1, 
+    lightlogger_file_path_2, 
+    start_time,
+    end_time,
+    date,
+    point_name,
+    disturbance_number
+  ) %>%
+  future_pmap(
+    ~visualize_light_logger_data(
+      ..1, 
+      ..2, 
+      ..3,
+      ..4,
+      ..5,
+      ..6,
+      ..7
+    )
   )
+
+pdf("../output/light_logger_plots.pdf")
+  walk(plots_light_loggers, ~ if (!is.null(.x)) print(.x))
+dev.off()
+
+#### CEB STOPPED HERE ####
 
 # Separate data for logger_1 and logger_2
 data_logger_1 <- data_light_loggers_pivot %>%
