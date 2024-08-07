@@ -50,6 +50,7 @@ extract_date_times <-
 
 plan(multisession, workers = parallel::detectCores())
 
+# read in the metadata for the light loggers
 data_light_logger_deployments <-
   read_excel(
     # data_path,
@@ -71,6 +72,12 @@ data_light_logger_deployments <-
       "../"
     )
   ) %>%
+  filter(
+    !str_detect(
+      lightlogger_file_path,
+      "deprecated"
+    )
+  ) %>%
   mutate(
     lightlogger_data = future_map(lightlogger_file_path, extract_date_times)
   ) %>%
@@ -82,8 +89,7 @@ data_light_logger_deployments <-
     first_date_time
   )
 
-
-
+# read in the metadata for the timing of the disturbance trials
 data_disturbance_times <-
   read_excel(
     # data_path,
@@ -121,10 +127,12 @@ data_disturbance_times <-
       )
   )
 
+# join the logger and disturbance metadata
 data_light_loggers <-
   data_light_logger_deployments %>%
   left_join(
-    data_disturbance_times
+    data_disturbance_times,
+    relationship = "many-to-many"
   )
 
 #### FUNCTION TO READ LIGHT INTENSITY ####
@@ -176,10 +184,10 @@ get_light_data <-
         date_time = lubridate::mdy_hms(`date_time_gmt_05_00`, tz = "UTC")
       ) %>%
       filter(date_time >= lubridate::ymd_hms(start_time) & date_time < lubridate::ymd_hms(end_time)) 
-      # dplyr::rename(
-      #   temp_f_1 = starts_with("temp_f"),
-      #   intensity_lum_ft2_1 = starts_with("intensity_lum_ft2")
-      # )
+    # dplyr::rename(
+    #   temp_f_1 = starts_with("temp_f"),
+    #   intensity_lum_ft2_1 = starts_with("intensity_lum_ft2")
+    # )
   }
 
 calc_light_attenuation <- 
