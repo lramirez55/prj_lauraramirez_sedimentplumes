@@ -159,6 +159,29 @@ read_light_intensity <-
     return(mean(light_intensity, na.rm = TRUE))
   }
 
+#### FUNCTION TO CALCULATE LIGHT ATTENUATION ####
+
+get_light_data <-
+  function(
+    file_path,
+    start_time,
+    end_time
+  ){
+    read_csv(
+      file_path, 
+      skip = 1
+    ) %>%
+      clean_names() %>%
+      mutate(
+        date_time = lubridate::mdy_hms(`date_time_gmt_05_00`, tz = "UTC")
+      ) %>%
+      filter(date_time >= lubridate::ymd_hms(start_time) & date_time < lubridate::ymd_hms(end_time)) 
+      # dplyr::rename(
+      #   temp_f_1 = starts_with("temp_f"),
+      #   intensity_lum_ft2_1 = starts_with("intensity_lum_ft2")
+      # )
+  }
+
 calc_light_attenuation <- 
   function(
     file_path_1,
@@ -172,35 +195,26 @@ calc_light_attenuation <-
     }
     
     data_1 <- 
-      read_csv(
-        file_path_1, 
-        skip = 1
+      get_light_data(
+        file_path_1,
+        start_time, 
+        end_time
       ) %>%
-      clean_names() %>%
-      mutate(
-        date_time = lubridate::mdy_hms(`date_time_gmt_05_00`, tz = "UTC")
-      ) %>%
-      filter(date_time >= lubridate::ymd_hms(start_time) & date_time < lubridate::ymd_hms(end_time)) %>%
       dplyr::rename(
         temp_f_1 = starts_with("temp_f"),
         intensity_lum_ft2_1 = starts_with("intensity_lum_ft2")
       )
     
     data_2 <- 
-      read_csv(
-        file_path_2, 
-        skip = 1
+      get_light_data(
+        file_path_2,
+        start_time, 
+        end_time
       ) %>%
-      clean_names() %>%
-      mutate(
-        date_time = lubridate::mdy_hms(`date_time_gmt_05_00`, tz = "UTC")
-      ) %>%
-      filter(date_time >= lubridate::ymd_hms(start_time) & date_time < lubridate::ymd_hms(end_time)) %>%
       dplyr::rename(
         temp_f_2 = starts_with("temp_f"),
         intensity_lum_ft2_2 = starts_with("intensity_lum_ft2")
       )
-    
     
     inner_join( # CEB perhaps inner_join would be better here
       data_1, 
@@ -217,21 +231,17 @@ calc_light_attenuation <-
       mean( 
         na.rm = TRUE
       )
-    
-    
-    # # Get light intensity values from the 4th column
-    # light_intensity <- as.numeric(filtered_data[[4]])
-    # 
-    # # Return the mean light intensity as a representative value
-    # return(mean(light_intensity, na.rm = TRUE))
   }
+
+#### FUNCTION TO VISUALIZE LIGHT ATTENUATION ####
 
 visualize_light_attenuation <- 
   function(
     file_path_1,
     file_path_2,
     start_time, 
-    end_time
+    end_time,
+    scaling_factor=100
   ) {
     
     if (is.na(file_path_1) | is.na(file_path_2)) {
@@ -239,36 +249,28 @@ visualize_light_attenuation <-
     }
     
     data_1 <- 
-      read_csv(
-        file_path_1, 
-        skip = 1
+      get_light_data(
+        file_path_1,
+        start_time, 
+        end_time
       ) %>%
-      clean_names() %>%
-      mutate(
-        date_time = lubridate::mdy_hms(`date_time_gmt_05_00`, tz = "UTC")
-      ) %>%
-      filter(date_time >= lubridate::ymd_hms(start_time) & date_time < lubridate::ymd_hms(end_time)) %>%
       dplyr::rename(
         temp_f_1 = starts_with("temp_f"),
         intensity_lum_ft2_1 = starts_with("intensity_lum_ft2")
       )
     
     data_2 <- 
-      read_csv(
-        file_path_2, 
-        skip = 1
+      get_light_data(
+        file_path_2,
+        start_time, 
+        end_time
       ) %>%
-      clean_names() %>%
-      mutate(
-        date_time = lubridate::mdy_hms(`date_time_gmt_05_00`, tz = "UTC")
-      ) %>%
-      filter(date_time >= lubridate::ymd_hms(start_time) & date_time < lubridate::ymd_hms(end_time)) %>%
       dplyr::rename(
         temp_f_2 = starts_with("temp_f"),
         intensity_lum_ft2_2 = starts_with("intensity_lum_ft2")
       )
     
-    data_all <-
+    data_12 <-
       inner_join( # CEB perhaps inner_join would be better here
         data_1, 
         data_2
@@ -281,8 +283,7 @@ visualize_light_attenuation <-
         light_attenuation_pct = 100 * (intensity_lum_ft2_2 - intensity_lum_ft2_1) / intensity_lum_ft2_1
       )
     
-    scaling_factor = 100
-    data_all %>%
+    data_12 %>%
       pivot_longer(
         cols = c(temp_f_1, temp_f_2, intensity_lum_ft2_1, intensity_lum_ft2_2),
         names_to = c(".value", "logger_id"),
@@ -304,7 +305,7 @@ visualize_light_attenuation <-
         axis.title.y.right = element_text(color = "black")
       )
     
-    data_all %>%
+    data_12 %>%
       ggplot() +
       aes(
         x=date_time,
@@ -319,8 +320,6 @@ visualize_light_attenuation <-
     return(mean(light_intensity, na.rm = TRUE))
   }
 
-###################################################################################
-# Run all data 
 
 #### Pivot Data to Get Logger 1 and Logger 2 ####
 data_light_loggers_pivot <- 
@@ -351,10 +350,7 @@ plan(multisession, workers = parallel::detectCores())
 
 data_light_loggers_pivot_atten <- 
   data_light_loggers_pivot %>%
-  # mutate(
-  #   logger_1_intensity = map2_dbl(lightlogger_file_path_1, start_time, ~read_light_intensity(.x, .y, end_time)),
-  #   logger_2_intensity = map2_dbl(lightlogger_file_path_2, start_time, ~read_light_intensity(.x, .y, end_time))
-  # )
+  head(106) %>%
   mutate(
     light_attenuation_mean = 
       future_pmap_dbl(
