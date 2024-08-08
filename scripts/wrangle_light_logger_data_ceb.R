@@ -163,18 +163,23 @@ visualize_light_logger_data <-
     date,
     point_name,
     disturbance_number,
-    scaling_factor=100
+    offset_time = 10, # Offset in minutes
+    scaling_factor=100 # controls the scale of the secondary y axis relative to the x axis
   ) {
     
     if (is.na(file_path_1) || is.na(file_path_2)) {
       return(NA)
     }
     
+    # Adjust start_time and end_time with the offset
+    adjusted_start_time <- start_time - lubridate::minutes(offset_time)
+    adjusted_end_time <- end_time + lubridate::minutes(offset_time)
+    
     data_1 <- 
       get_light_data(
         file_path_1,
-        start_time, 
-        end_time
+        adjusted_start_time, 
+        adjusted_end_time
       ) %>%
       dplyr::rename(
         temp_f_1 = starts_with("temp_f"),
@@ -184,8 +189,8 @@ visualize_light_logger_data <-
     data_2 <- 
       get_light_data(
         file_path_2,
-        start_time, 
-        end_time
+        adjusted_start_time, 
+        adjusted_end_time
       ) %>%
       dplyr::rename(
         temp_f_2 = starts_with("temp_f"),
@@ -218,7 +223,21 @@ visualize_light_logger_data <-
         color = logger_id
       ) +
       geom_line() +
-      geom_point(aes(y = light_attenuation_pct * scaling_factor), color = "black") +
+      geom_point(
+        aes(y = light_attenuation_pct * scaling_factor), 
+        color = "black"
+      ) +
+      geom_vline(
+        xintercept = as.numeric(start_time), 
+        linetype = "dashed", 
+        color = "green4") +
+      geom_vline(
+        xintercept = as.numeric(end_time), 
+        linetype = "dashed", 
+        color = "red4"
+      ) +
+      annotate("text", x = start_time - lubridate::minutes(1), y = 0, label = "Begin", hjust = 1, color = "green4") +
+      annotate("text", x = end_time + lubridate::minutes(1), y = 0, label = "End", hjust = 0, color = "red4") +
       scale_y_continuous(
         name = "Intensity (lum/ft2)",
         sec.axis = sec_axis(~ . / scaling_factor, name = "Light Attenuation (%)")
@@ -405,18 +424,19 @@ plots_light_loggers <-
   ) %>%
   future_pmap(
     ~visualize_light_logger_data(
-      ..1, 
-      ..2, 
-      ..3,
-      ..4,
-      ..5,
-      ..6,
-      ..7
+      file_path_1 = ..1, 
+      file_path_2 = ..2, 
+      start_time = ..3,
+      end_time = ..4,
+      date = ..5,
+      point_name = ..6,
+      disturbance_number = ..7,
+      offset_time = 20
     )
   )
 
 pdf("../output/light_logger_plots.pdf")
-  walk(plots_light_loggers, ~ if (!is.null(.x)) print(.x))
+walk(plots_light_loggers, ~ if (!is.null(.x)) print(.x))
 dev.off()
 
 #### CEB STOPPED HERE ####
