@@ -1,5 +1,6 @@
 #### user defined variables ####
 data_poles_path <- "../data/pole_legend.xlsx"
+light_logger_data_vis_path <- "../output/light_logger_plots.pdf"
 
 #### PACKAGES ####
 packages_used <- 
@@ -9,7 +10,8 @@ packages_used <-
     "lubridate",
     "rstudioapi",
     "purrr",
-    "furrr")
+    "furrr",
+    "zoo")
 
 packages_to_install <- 
   packages_used[!packages_used %in% installed.packages()[,1]]
@@ -152,122 +154,6 @@ calc_light_attenuation <-
       )
   }
 
-#### FUNCTION TO VISUALIZE LIGHT LOGGER DATA ####
-
-visualize_light_logger_data <- 
-  function(
-    file_path_1,
-    file_path_2,
-    start_time, 
-    end_time,
-    date,
-    point_name,
-    disturbance_number,
-    offset_time = 10, # Offset in minutes
-    scaling_factor=100 # controls the scale of the secondary y axis relative to the x axis
-  ) {
-    
-    if (is.na(file_path_1) || is.na(file_path_2)) {
-      return(NA)
-    }
-    
-    # Adjust start_time and end_time with the offset
-    adjusted_start_time <- start_time - lubridate::minutes(offset_time)
-    adjusted_end_time <- end_time + lubridate::minutes(offset_time)
-    
-    data_1 <- 
-      get_light_data(
-        file_path_1,
-        adjusted_start_time, 
-        adjusted_end_time
-      ) %>%
-      dplyr::rename(
-        temp_f_1 = starts_with("temp_f"),
-        intensity_lum_ft2_1 = starts_with("intensity_lum_ft2")
-      )
-    
-    data_2 <- 
-      get_light_data(
-        file_path_2,
-        adjusted_start_time, 
-        adjusted_end_time
-      ) %>%
-      dplyr::rename(
-        temp_f_2 = starts_with("temp_f"),
-        intensity_lum_ft2_2 = starts_with("intensity_lum_ft2")
-      )
-    
-    data_12 <-
-      inner_join( # CEB perhaps inner_join would be better here
-        data_1, 
-        data_2
-      ) %>%
-      select(
-        -starts_with("stopped_"),
-        -starts_with("end_")
-      ) %>%
-      mutate(
-        light_attenuation_pct = 100 * (intensity_lum_ft2_2 - intensity_lum_ft2_1) / intensity_lum_ft2_1
-      )
-    
-    data_12 %>%
-      pivot_longer(
-        cols = c(temp_f_1, temp_f_2, intensity_lum_ft2_1, intensity_lum_ft2_2),
-        names_to = c(".value", "logger_id"),
-        names_pattern = "(.*)_(\\d+)"
-      ) %>%
-      ggplot() +
-      aes(
-        x=date_time,
-        y=intensity_lum_ft2,
-        color = logger_id
-      ) +
-      geom_line() +
-      geom_point(
-        aes(y = light_attenuation_pct * scaling_factor), 
-        color = "black"
-      ) +
-      geom_vline(
-        xintercept = as.numeric(start_time), 
-        linetype = "dashed", 
-        color = "green4") +
-      geom_vline(
-        xintercept = as.numeric(end_time), 
-        linetype = "dashed", 
-        color = "red4"
-      ) +
-      annotate("text", x = start_time - lubridate::minutes(1), y = 0, label = "Begin", hjust = 1, color = "green4") +
-      annotate("text", x = end_time + lubridate::minutes(1), y = 0, label = "End", hjust = 0, color = "red4") +
-      scale_y_continuous(
-        name = "Intensity (lum/ft2)",
-        sec.axis = sec_axis(~ . / scaling_factor, name = "Light Attenuation (%)")
-      ) +
-      theme_bw() +
-      theme(
-        axis.title.y.right = element_text(color = "black")
-      ) +
-      labs(
-        title = str_c(
-          date,
-          ", Pole ",
-          point_name,
-          ", Disturbance ",
-          disturbance_number,
-          sep = ""
-        )
-      )
-    
-    # data_12 %>%
-    #   ggplot() +
-    #   aes(
-    #     x=date_time,
-    #     y=light_attenuation_pct
-    #   ) +
-    #   geom_point() +
-    #   geom_smooth()
-    
-  }
-
 
 #### READ IN DATA ####
 
@@ -402,8 +288,149 @@ data_light_loggers <-
       lightlogger_file_path_1:notes_3, 
       ~ unlist(.x)
     )
-  ) 
+  ) %>%
+  filter(date != "2022-06-03")
 
+
+#### FUNCTION TO VISUALIZE LIGHT LOGGER DATA ####
+
+visualize_light_logger_data <- 
+  function(
+    file_path_1,
+    file_path_2,
+    start_time, 
+    end_time,
+    date,
+    point_name,
+    disturbance_number,
+    offset_time = 10, # Offset in minutes
+    window_width = 5,
+    scaling_factor=100 # controls the scale of the secondary y axis relative to the x axis
+  ) {
+    
+    if (is.na(file_path_1) || is.na(file_path_2)) {
+      return(NA)
+    }
+    
+    # Adjust start_time and end_time with the offset
+    adjusted_start_time <- start_time - lubridate::minutes(offset_time)
+    adjusted_end_time <- end_time + lubridate::minutes(offset_time)
+    
+    data_1 <- 
+      get_light_data(
+        file_path_1,
+        adjusted_start_time, 
+        adjusted_end_time
+      ) %>%
+      dplyr::rename(
+        temp_f_1 = starts_with("temp_f"),
+        intensity_lum_ft2_1 = starts_with("intensity_lum_ft2")
+      )
+    
+    data_2 <- 
+      get_light_data(
+        file_path_2,
+        adjusted_start_time, 
+        adjusted_end_time
+      ) %>%
+      dplyr::rename(
+        temp_f_2 = starts_with("temp_f"),
+        intensity_lum_ft2_2 = starts_with("intensity_lum_ft2")
+      )
+    
+    data_12 <-
+      inner_join( # CEB perhaps inner_join would be better here
+        data_1, 
+        data_2
+      ) %>%
+      select(
+        -starts_with("stopped_"),
+        -starts_with("end_")
+      ) %>%
+      mutate(
+        intensity_lum_ft2_rollmean_1 = zoo::rollmean(intensity_lum_ft2_1, k = window_width, fill = NA, align = "center"),
+        intensity_lum_ft2_rollmean_2 = zoo::rollmean(intensity_lum_ft2_2, k = window_width, fill = NA, align = "center"),
+        light_attenuation_pct = 100 * (intensity_lum_ft2_2 - intensity_lum_ft2_1) / intensity_lum_ft2_1,
+        light_attenuation_rollmean_pct = 100 * (intensity_lum_ft2_rollmean_2 - intensity_lum_ft2_rollmean_1) / intensity_lum_ft2_rollmean_1
+      )
+    
+    data_12 %>%
+      pivot_longer(
+        cols = c(
+          temp_f_1, 
+          temp_f_2, 
+          intensity_lum_ft2_1, 
+          intensity_lum_ft2_2,
+          intensity_lum_ft2_rollmean_1,
+          intensity_lum_ft2_rollmean_2
+        ),
+        names_to = 
+          c(
+            ".value", 
+            "logger_id"
+          ),
+        names_pattern = "(.*)_(\\d+)"
+      ) %>%
+      ggplot() +
+      aes(
+        x=date_time,
+        y=intensity_lum_ft2,
+        color = logger_id
+      ) +
+      geom_line(alpha = 0.5) +
+      geom_line(
+        aes(y = intensity_lum_ft2_rollmean), 
+        # linetype = "dotted"
+      ) +
+      geom_point(
+        aes(y = light_attenuation_pct * scaling_factor), 
+        color = "black",
+        shape = 1
+      ) +
+      geom_point(
+        aes(y = light_attenuation_rollmean_pct * scaling_factor), 
+        color = "black"
+      ) +
+      geom_vline(
+        xintercept = as.numeric(start_time), 
+        linetype = "dashed", 
+        color = "green4") +
+      geom_vline(
+        xintercept = as.numeric(end_time), 
+        linetype = "dashed", 
+        color = "red4"
+      ) +
+      annotate("text", x = start_time - lubridate::minutes(1), y = 0, label = "Begin", hjust = 1, color = "green4") +
+      annotate("text", x = end_time + lubridate::minutes(1), y = 0, label = "End", hjust = 0, color = "red4") +
+      scale_y_continuous(
+        name = "Intensity (lum/ft2)",
+        sec.axis = sec_axis(~ . / scaling_factor, name = "Light Attenuation (%)")
+      ) +
+      theme_bw() +
+      theme(
+        axis.title.y.right = element_text(color = "black")
+      ) +
+      labs(
+        title = str_c(
+          date,
+          ", Pole ",
+          point_name,
+          ", Disturbance ",
+          disturbance_number,
+          sep = ""
+        )
+      )
+    
+    # data_12 %>%
+    #   ggplot() +
+    #   aes(
+    #     x=date_time,
+    #     y=light_attenuation_pct
+    #   ) +
+    #   geom_point() +
+    #   geom_smooth()
+    
+  }
 
 #### Visualize Light Logger Data ####
 
@@ -431,11 +458,14 @@ plots_light_loggers <-
       date = ..5,
       point_name = ..6,
       disturbance_number = ..7,
-      offset_time = 20
+      offset_time = 20,
+      window_width = 5
     )
   )
 
-pdf("../output/light_logger_plots.pdf")
+plots_light_loggers[1]
+
+pdf(light_logger_data_vis_path)
 walk(plots_light_loggers, ~ if (!is.null(.x)) print(.x))
 dev.off()
 
