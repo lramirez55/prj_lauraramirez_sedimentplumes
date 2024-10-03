@@ -1,6 +1,7 @@
 #### user defined variables ####
 data_poles_path <- "../data/pole_legend.xlsx"
 light_logger_data_vis_path <- "../output/light_logger_plots.pdf"
+sliding_window_interval_seconds = 300
 
 #### PACKAGES ####
 packages_used <- 
@@ -36,15 +37,32 @@ extract_date_times <-
   function(file_path) {
     data <- 
       read_csv(file_path, skip = 1) %>%
-      clean_names()
+      clean_names() %>%
+      filter(!if_any(everything(), ~ grepl("Logged", .))) %>%
+      select(where(~ !all(is.na(.)))) %>%
+      filter(!if_any(everything(), ~ is.na(.))) %>%
+      slice(-n())
     
     first_date_time <- data$date_time_gmt_05_00[1]
     last_date_time <- data$date_time_gmt_05_00[nrow(data)]
     
+    # Calculate the total time difference in seconds
+    total_seconds <- 
+      as.numeric(
+        difftime(
+          mdy_hms(last_date_time), 
+          mdy_hms(first_date_time), 
+          units = "secs"
+        )
+      )
+    
+    # Calculate the number of seconds between measurements
+    # measurement_interval <- total_seconds / (nrow(data) - 1)
+    
     tibble(
       first_date_time = mdy_hms(first_date_time),
-      last_date_time = mdy_hms(last_date_time)
-      
+      last_date_time = mdy_hms(last_date_time),
+      measurement_interval = total_seconds / (nrow(data) - 1)
     )
   }
 
@@ -287,9 +305,11 @@ data_light_loggers <-
     across(
       lightlogger_file_path_1:notes_3, 
       ~ unlist(.x)
-    )
+    ),
+    sliding_window_width = (sliding_window_interval_seconds/measurement_interval) + 1
   ) %>%
-  filter(date != "2022-06-03")
+  # filter(date != "2022-06-03")
+  filter(!str_detect(date, "2022\\-06")) #LR
 
 
 #### FUNCTION TO VISUALIZE LIGHT LOGGER DATA ####
@@ -350,8 +370,8 @@ visualize_light_logger_data <-
       mutate(
         intensity_lum_ft2_rollmean_1 = zoo::rollmean(intensity_lum_ft2_1, k = window_width, fill = NA, align = "center"),
         intensity_lum_ft2_rollmean_2 = zoo::rollmean(intensity_lum_ft2_2, k = window_width, fill = NA, align = "center"),
-        light_attenuation_pct = 100 * (intensity_lum_ft2_2 - intensity_lum_ft2_1) / intensity_lum_ft2_1,
-        light_attenuation_rollmean_pct = 100 * (intensity_lum_ft2_rollmean_2 - intensity_lum_ft2_rollmean_1) / intensity_lum_ft2_rollmean_1
+        light_attenuation_pct = 100 * (intensity_lum_ft2_1 - intensity_lum_ft2_2) / intensity_lum_ft2_1,
+        light_attenuation_rollmean_pct = 100 * (intensity_lum_ft2_rollmean_1 - intensity_lum_ft2_rollmean_2) / intensity_lum_ft2_rollmean_1
       )
     
     data_12 %>%
@@ -402,10 +422,12 @@ visualize_light_logger_data <-
       ) +
       annotate("text", x = start_time - lubridate::minutes(1), y = 0, label = "Begin", hjust = 1, color = "green4") +
       annotate("text", x = end_time + lubridate::minutes(1), y = 0, label = "End", hjust = 0, color = "red4") +
+      ylim(-2000,NA) +
       scale_y_continuous(
         name = "Intensity (lum/ft2)",
         sec.axis = sec_axis(~ . / scaling_factor, name = "Light Attenuation (%)")
       ) +
+
       theme_bw() +
       theme(
         axis.title.y.right = element_text(color = "black")
@@ -447,7 +469,8 @@ plots_light_loggers <-
     end_time,
     date,
     point_name,
-    disturbance_number
+    disturbance_number,
+    sliding_window_width #LR
   ) %>%
   future_pmap(
     ~visualize_light_logger_data(
@@ -459,17 +482,31 @@ plots_light_loggers <-
       point_name = ..6,
       disturbance_number = ..7,
       offset_time = 20,
-      window_width = 5
+      # window_width = 5 
+      window_width = ..8 #LR
     )
   )
 
 plots_light_loggers[1]
 
-pdf(light_logger_data_vis_path)
+pdf(
+  str_c(
+    dirname(light_logger_data_vis_path),
+    "/",
+    sliding_window_interval_seconds,
+    "s_",
+    basename(light_logger_data_vis_path),
+    sep = ""
+  )
+)
 walk(plots_light_loggers, ~ if (!is.null(.x)) print(.x))
 dev.off()
 
 #### CEB STOPPED HERE ####
+
+######################################################################
+######################################################################
+
 
 # Separate data for logger_1 and logger_2
 data_logger_1 <- data_light_loggers_pivot %>%
