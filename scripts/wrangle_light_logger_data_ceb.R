@@ -146,7 +146,7 @@ calc_light_attenuation <-
         -starts_with("end_")
       ) %>%
       mutate(
-        light_attenuation_pct = 100 * (intensity_lum_ft2_2 - intensity_lum_ft2_1) / intensity_lum_ft2_1
+        light_attenuation_pct = 100 * (intensity_lum_ft2_1 - intensity_lum_ft2_2) / intensity_lum_ft2_1
       ) %>%
       pull(light_attenuation_pct) %>%
       mean( 
