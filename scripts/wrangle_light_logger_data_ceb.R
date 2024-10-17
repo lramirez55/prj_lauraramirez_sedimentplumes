@@ -35,6 +35,15 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 #### FUNCTION TO EXTRACT DATE TIME ####
 extract_date_times <- 
   function(file_path) {
+    
+    
+    
+    
+    # 
+    # for(file_path in file_paths){
+    
+    
+    
     data <- 
       read_csv(file_path, skip = 1) %>%
       clean_names() %>%
@@ -64,6 +73,19 @@ extract_date_times <-
       last_date_time = mdy_hms(last_date_time),
       measurement_interval = total_seconds / (nrow(data) - 1)
     )
+    
+    
+    
+    
+    
+    # }
+    
+    
+    
+    
+    
+    
+    
   }
 
 #### FUNCTION TO READ LIGHT INTENSITY ####
@@ -191,6 +213,7 @@ data_light_logger_deployments <-
     )
   ) %>%
   clean_names() %>%
+  filter(!is.na(lightlogger_file_path)) %>%
   mutate(
     date = ymd(date),
     lightlogger_file_path = str_replace(
