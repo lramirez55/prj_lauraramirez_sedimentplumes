@@ -529,7 +529,162 @@ dev.off()
 
 ######################################################################
 ######################################################################
+load("data_coordinates.RData")
 
+combined <- data_light_loggers %>%
+  group_by(point_name, date, disturbance_number) %>%
+  summarise(light_attenuation_mean = mean(light_attenuation_mean, na.rm = T)) %>%
+  left_join(data_coordinates %>% 
+              select(coord_x, coord_y, point_name, date, disturbance_number = disturbance_id)) %>%
+  ungroup()
+
+combined %>%
+  filter(date == '2022-10-01', disturbance_number ==1) %>%
+  ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean)) + geom_tile() +
+  theme_light() +
+  scale_x_reverse()
+
+
+combined %>%
+  ungroup() %>%
+  summarise(min(light_attenuation_mean, na.rm = T), max(light_attenuation_mean, na.rm = T))
+
+combined %>%
+  drop_na(light_attenuation_mean) %>% # drop nan attenuation
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean)) +  
+  annotate('rect',xmin=0, xmax=100, ymin=0, ymax=200, alpha=0,color='black' ) +
+  annotate('rect',xmin=200, xmax=300, ymin=0, ymax=200, alpha=0,color='black' ) +
+  annotate('rect',xmin=0, xmax=300, ymin=0, ymax=50, alpha=0,color='black' ) +
+  annotate('rect',xmin=0, xmax=300, ymin=100, ymax=200, alpha=0,color='black' ) +
+  annotate("text", x = 320, y = 25, label = "A", size = 3, color = "black") +
+  annotate("text", x = 50, y = 215, label = "1", size = 3, color = "black") +
+  
+  annotate("text", x = 320, y = 75, label = "B", size = 3, color = "black") +
+  annotate("text", x = 150, y = 215, label = "2", size = 3, color = "black") +
+  
+  annotate("text", x = 320, y = 150, label = "C", size = 3, color = "black") +
+  annotate("text", x = 250, y = 215, label = "3", size = 3, color = "black") +
+  
+  geom_point(size=3, pch=15) +
+  facet_grid(cols = vars(date), rows= vars(disturbance_number )) +
+  scale_colour_distiller(direction =1, palette = 'BrBG') +
+  xlab('Width (ft)') + ylab('Length (ft)') + theme_light() +
+  scale_y_continuous(breaks=c(0, 50, 100, 200)) +
+  scale_x_reverse(limits=c(335,0)) + # reverse x-axis
+  theme(
+    panel.grid.major = element_blank(),  # Remove major gridlines
+    panel.grid.minor = element_blank()   # Remove minor gridlines
+  )
+
+
+combined %>%
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean)) + geom_tile() + 
+  facet_grid(cols = vars(date), rows= vars(disturbance_number ), scales='free')
+
+
+combined %>%
+  mutate(coord_x = round(coord_x/100)*100, 
+         coord_y = round(coord_y/100)*100) %>%
+  count(coord_x, coord_y) %>%
+  ggplot(aes(x=coord_x, y=coord_y, fill=n)) + geom_tile() +
+  geom_text(aes(label=n)) +
+  theme_light() + 
+  scale_x_reverse() # reverse x-axis
+
+
+x_vals <- c(0, 100, 200, 300)
+y_vals <- c(0, 50, 100, 200)
+res <- data.frame()
+for (i in 1:(length(x_vals)-1)){
+  for (j in 1:(length(y_vals)-1)){
+    res <- res %>%
+      bind_rows(data.frame(x = i, y= j, cnt = sum(between(combined$coord_x, x_vals[i], x_vals[i+1]) & 
+                                                    between(combined$coord_y, y_vals[j], y_vals[j+1]) , na.rm = T)))
+  }
+}
+
+res %>%
+  ggplot(aes(x=x, y=y, fill=cnt)) + geom_tile() + 
+  geom_text(aes(label=cnt), color='red') +
+  theme_light() + 
+  scale_x_reverse(breaks=c(1,2,3), labels=c(50, 150, 250)) +
+  scale_y_continuous(breaks=c(1,2,3), labels=c(25, 75, 150)) + #edit to have 
+  xlab('Width (ft)') + ylab('Length (ft)') + 
+  ggtitle('Percent Light Attenuation Heatmap') +
+  theme(plot.title = element_text(hjust=0.5)) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue")
+
+
+
+
+
+######################################################################
+load("data_coordinates.RData")
+
+combined <- data_light_loggers %>%
+  group_by(point_name, date, disturbance_number) %>%
+  summarise(light_attenuation_mean = mean(light_attenuation_mean, na.rm = T)) %>%
+  left_join(data_coordinates %>% 
+              select(coord_x, coord_y, point_name, date, disturbance_number = disturbance_id)) %>%
+  ungroup()
+  
+combined %>%
+  filter(date == '2022-10-01', disturbance_number ==1) %>%
+  ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean)) + geom_tile() +
+  theme_light()
+
+
+combined %>%
+  ungroup() %>%
+  summarise(min(light_attenuation_mean, na.rm = T), max(light_attenuation_mean, na.rm = T))
+
+combined %>%
+  drop_na(light_attenuation_mean) %>% # drop nan attenuation
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean)) +  
+  annotate('rect',xmin=0, xmax=100, ymin=-Inf, ymax=Inf, alpha=0.4,fill='gray' ) +
+  annotate('rect',xmin=200, xmax=300, ymin=-Inf, ymax=Inf, alpha=0.4,fill='gray' ) +
+  geom_point(size=3, pch=15) +
+  facet_grid(cols = vars(date), rows= vars(disturbance_number )) +
+  scale_colour_distiller(direction =1, palette = 'YlOrBr') +
+  xlab('Width') + ylab('Height') + theme_light() +
+  scale_y_continuous(breaks=c(0, 50, 100, 200)) +
+  scale_x_reverse() # reverse x-axis
+
+
+combined %>%
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean)) + geom_tile() + 
+  facet_grid(cols = vars(date), rows= vars(disturbance_number ), scales='free')
+
+
+combined %>%
+  mutate(coord_x = round(coord_x/100)*100, 
+         coord_y = round(coord_y/100)*100) %>%
+  count(coord_x, coord_y) %>%
+  ggplot(aes(x=coord_x, y=coord_y, fill=n)) + geom_tile() +
+  geom_text(aes(label=n)) +
+  theme_light() + 
+  scale_x_reverse() # reverse x-axis
+  
+
+x_vals <- c(0, 100, 200, 300)
+y_vals <- c(0, 50, 100, 200)
+res <- data.frame()
+for (i in 1:(length(x_vals)-1)){
+  for (j in 1:(length(y_vals)-1)){
+    res <- res %>%
+      bind_rows(data.frame(x = i, y= j, cnt = sum(between(combined$coord_x, x_vals[i], x_vals[i+1]) & 
+                                                      between(combined$coord_y, y_vals[j], y_vals[j+1]) , na.rm = T)))
+  }
+}
+
+res %>%
+  ggplot(aes(x=x, y=y, fill=cnt)) + geom_tile() +
+  geom_text(aes(label=cnt)) +
+  theme_light() + 
+  scale_x_reverse() # reverse x-axis
+  
+
+#######################################################
 
 # Separate data for logger_1 and logger_2
 data_logger_1 <- data_light_loggers_pivot %>%
