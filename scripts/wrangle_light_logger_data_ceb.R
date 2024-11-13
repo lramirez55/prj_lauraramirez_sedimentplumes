@@ -214,6 +214,9 @@ data_light_logger_deployments <-
   ) %>%
   clean_names() %>%
   filter(!is.na(lightlogger_file_path)) %>%
+  #remove light logger data that has an issue
+  filter(is.na(data_issue)) %>%
+  select(-data_issue) %>%
   mutate(
     date = ymd(date),
     lightlogger_file_path = str_replace(
@@ -283,10 +286,17 @@ plan(multisession, workers = parallel::detectCores())
 
 data_light_loggers <-
   data_light_logger_deployments %>%
+  #filter(date == "2022-10-05") %>%
   left_join(
     data_disturbance_times,
     relationship = "many-to-many"
-  ) %>%
+  ) %>% 
+  # fix date_time that don't match, and minor measurment interval variations
+  group_by(point_name, date) %>%
+  mutate(last_date_time = min(last_date_time)) %>%
+  mutate(first_date_time = max(first_date_time)) %>%
+  mutate(measurement_interval = min(measurement_interval)) %>%
+  ungroup() %>% 
   # make each row 1 pole, rather than 1 logger
   pivot_wider(
     names_from = logger_number_per_pole,
@@ -296,7 +306,7 @@ data_light_loggers <-
         lightlogger_file_name,
         notes
       )
-  )  %>%
+  )  %>% 
   mutate(
     across(
       lightlogger_file_path_1:notes_3, 
@@ -450,7 +460,7 @@ visualize_light_logger_data <-
         name = "Intensity (lum/ft2)",
         sec.axis = sec_axis(~ . / scaling_factor, name = "Light Attenuation (%)")
       ) +
-
+      
       theme_bw() +
       theme(
         axis.title.y.right = element_text(color = "black")
@@ -525,33 +535,43 @@ pdf(
 walk(plots_light_loggers, ~ if (!is.null(.x)) print(.x))
 dev.off()
 
-#### CEB STOPPED HERE ####
 
-######################################################################
-######################################################################
+#### Make attenuation heatmaps ####
+
 load("data_coordinates.RData")
 
-combined <- data_light_loggers %>%
-  group_by(point_name, date, disturbance_number) %>%
-  summarise(light_attenuation_mean = mean(light_attenuation_mean, na.rm = T)) %>%
+data_combined <- 
+  data_light_loggers %>%
+  group_by(
+    point_name, 
+    date, 
+    disturbance_number
+  ) %>%
+  summarise(
+    light_attenuation_mean_mean = 
+      mean(
+        light_attenuation_mean, 
+        na.rm = T
+      )
+  ) %>%
   left_join(data_coordinates %>% 
               select(coord_x, coord_y, point_name, date, disturbance_number = disturbance_id)) %>%
   ungroup()
 
-combined %>%
+data_combined %>%
   filter(date == '2022-10-01', disturbance_number ==1) %>%
-  ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean)) + geom_tile() +
+  ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean_mean)) + geom_tile() +
   theme_light() +
   scale_x_reverse()
 
 
-combined %>%
+data_combined %>%
   ungroup() %>%
-  summarise(min(light_attenuation_mean, na.rm = T), max(light_attenuation_mean, na.rm = T))
+  summarise(min(light_attenuation_mean_mean, na.rm = T), max(light_attenuation_mean_mean, na.rm = T))
 
-combined %>%
-  drop_na(light_attenuation_mean) %>% # drop nan attenuation
-  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean)) +  
+data_combined %>%
+  drop_na(light_attenuation_mean_mean) %>% # drop nan attenuation
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean_mean)) +  
   annotate('rect',xmin=0, xmax=100, ymin=0, ymax=200, alpha=0,color='black' ) +
   annotate('rect',xmin=200, xmax=300, ymin=0, ymax=200, alpha=0,color='black' ) +
   annotate('rect',xmin=0, xmax=300, ymin=0, ymax=50, alpha=0,color='black' ) +
@@ -577,12 +597,12 @@ combined %>%
   )
 
 
-combined %>%
-  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean)) + geom_tile() + 
+data_combined %>%
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean_mean)) + geom_tile() + 
   facet_grid(cols = vars(date), rows= vars(disturbance_number ), scales='free')
 
 
-combined %>%
+data_combined %>%
   mutate(coord_x = round(coord_x/100)*100, 
          coord_y = round(coord_y/100)*100) %>%
   count(coord_x, coord_y) %>%
@@ -598,8 +618,109 @@ res <- data.frame()
 for (i in 1:(length(x_vals)-1)){
   for (j in 1:(length(y_vals)-1)){
     res <- res %>%
-      bind_rows(data.frame(x = i, y= j, cnt = sum(between(combined$coord_x, x_vals[i], x_vals[i+1]) & 
-                                                    between(combined$coord_y, y_vals[j], y_vals[j+1]) , na.rm = T)))
+      bind_rows(data.frame(x = i, y= j, cnt = sum(between(data_combined$coord_x, x_vals[i], x_vals[i+1]) & 
+                                                    between(data_combined$coord_y, y_vals[j], y_vals[j+1]) , na.rm = T)))
+  }
+}
+
+res %>%
+  ggplot(aes(x=x, y=y, fill=cnt)) + geom_tile() + 
+  geom_text(aes(label=cnt), color='red') +
+  theme_light() + 
+  scale_x_reverse(breaks=c(1,2,3), labels=c(50, 150, 250)) +
+  scale_y_continuous(breaks=c(1,2,3), labels=c(25, 75, 150)) + #edit to have 
+  xlab('Width (ft)') + ylab('Length (ft)') + 
+  ggtitle('Percent Light Attenuation Heatmap') +
+  theme(plot.title = element_text(hjust=0.5)) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue")
+
+#### CEB STOPPED HERE ####
+
+load("data_coordinates.RData")
+
+######################################################################
+######################################################################
+load("data_coordinates.RData")
+
+data_combined <- 
+  data_light_loggers %>%
+  group_by(
+    point_name, 
+    date, 
+    disturbance_number
+  ) %>%
+  summarise(
+    light_attenuation_mean_mean = mean(
+      light_attenuation_mean, 
+      na.rm = T
+    )
+  ) %>%
+  left_join(data_coordinates %>% 
+              select(coord_x, coord_y, point_name, date, disturbance_number = disturbance_id)) %>%
+  ungroup()
+
+data_combined %>%
+  filter(date == '2022-10-01', disturbance_number ==1) %>%
+  ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean_mean)) + geom_tile() +
+  theme_light() +
+  scale_x_reverse()
+
+
+data_combined %>%
+  ungroup() %>%
+  summarise(min(light_attenuation_mean_mean, na.rm = T), max(light_attenuation_mean_mean, na.rm = T))
+
+data_combined %>%
+  drop_na(light_attenuation_mean_mean) %>% # drop nan attenuation
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean_mean)) +  
+  annotate('rect',xmin=0, xmax=100, ymin=0, ymax=200, alpha=0,color='black' ) +
+  annotate('rect',xmin=200, xmax=300, ymin=0, ymax=200, alpha=0,color='black' ) +
+  annotate('rect',xmin=0, xmax=300, ymin=0, ymax=50, alpha=0,color='black' ) +
+  annotate('rect',xmin=0, xmax=300, ymin=100, ymax=200, alpha=0,color='black' ) +
+  annotate("text", x = 320, y = 25, label = "A", size = 3, color = "black") +
+  annotate("text", x = 50, y = 215, label = "1", size = 3, color = "black") +
+  
+  annotate("text", x = 320, y = 75, label = "B", size = 3, color = "black") +
+  annotate("text", x = 150, y = 215, label = "2", size = 3, color = "black") +
+  
+  annotate("text", x = 320, y = 150, label = "C", size = 3, color = "black") +
+  annotate("text", x = 250, y = 215, label = "3", size = 3, color = "black") +
+  
+  geom_point(size=3, pch=15) +
+  facet_grid(cols = vars(date), rows= vars(disturbance_number )) +
+  scale_colour_distiller(direction =1, palette = 'BrBG') +
+  xlab('Width (ft)') + ylab('Length (ft)') + theme_light() +
+  scale_y_continuous(breaks=c(0, 50, 100, 200)) +
+  scale_x_reverse(limits=c(335,0)) + # reverse x-axis
+  theme(
+    panel.grid.major = element_blank(),  # Remove major gridlines
+    panel.grid.minor = element_blank()   # Remove minor gridlines
+  )
+
+
+data_combined %>%
+  ggplot(aes(x=coord_x, y=coord_y, color=light_attenuation_mean_mean)) + geom_tile() + 
+  facet_grid(cols = vars(date), rows= vars(disturbance_number ), scales='free')
+
+
+data_combined %>%
+  mutate(coord_x = round(coord_x/100)*100, 
+         coord_y = round(coord_y/100)*100) %>%
+  count(coord_x, coord_y) %>%
+  ggplot(aes(x=coord_x, y=coord_y, fill=n)) + geom_tile() +
+  geom_text(aes(label=n)) +
+  theme_light() + 
+  scale_x_reverse() # reverse x-axis
+
+
+x_vals <- c(0, 100, 200, 300)
+y_vals <- c(0, 50, 100, 200)
+res <- data.frame()
+for (i in 1:(length(x_vals)-1)){
+  for (j in 1:(length(y_vals)-1)){
+    res <- res %>%
+      bind_rows(data.frame(x = i, y= j, cnt = sum(between(data_combined$coord_x, x_vals[i], x_vals[i+1]) & 
+                                                    between(data_combined$coord_y, y_vals[j], y_vals[j+1]) , na.rm = T)))
   }
 }
 
@@ -627,7 +748,7 @@ combined <- data_light_loggers %>%
   left_join(data_coordinates %>% 
               select(coord_x, coord_y, point_name, date, disturbance_number = disturbance_id)) %>%
   ungroup()
-  
+
 combined %>%
   filter(date == '2022-10-01', disturbance_number ==1) %>%
   ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean)) + geom_tile() +
@@ -664,7 +785,7 @@ combined %>%
   geom_text(aes(label=n)) +
   theme_light() + 
   scale_x_reverse() # reverse x-axis
-  
+
 
 x_vals <- c(0, 100, 200, 300)
 y_vals <- c(0, 50, 100, 200)
@@ -673,7 +794,7 @@ for (i in 1:(length(x_vals)-1)){
   for (j in 1:(length(y_vals)-1)){
     res <- res %>%
       bind_rows(data.frame(x = i, y= j, cnt = sum(between(combined$coord_x, x_vals[i], x_vals[i+1]) & 
-                                                      between(combined$coord_y, y_vals[j], y_vals[j+1]) , na.rm = T)))
+                                                    between(combined$coord_y, y_vals[j], y_vals[j+1]) , na.rm = T)))
   }
 }
 
@@ -682,7 +803,7 @@ res %>%
   geom_text(aes(label=cnt)) +
   theme_light() + 
   scale_x_reverse() # reverse x-axis
-  
+
 
 #######################################################
 
