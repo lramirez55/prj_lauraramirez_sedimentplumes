@@ -557,27 +557,150 @@ data_combined <-
   # ) %>%
   left_join(
     data_coordinates %>% 
-              select(
-                coord_x, 
-                coord_y, 
-                point_name, 
-                date, 
-                disturbance_number = disturbance_id
-                )
-    ) %>%
+      select(
+        coord_x, 
+        coord_y, 
+        point_name, 
+        date, 
+        disturbance_number = disturbance_id
+      )
+  ) %>%
   ungroup() %>%
   distinct() %>%
   filter(!is.na(coord_x)) %>%
   filter(!is.na(coord_y)) %>%
   filter(!is.na(light_attenuation_mean)) %>%
   mutate(
-    case_when(
-      coord_x >= 0 & coord_x < 100, 
-      coord_y >= 0 & coord_y < 50
-    )
+    track =
+      case_when(
+        coord_x <= 0 ~ "U",
+        coord_x > 0 & coord_x < 100 ~ "1",
+        coord_x >= 100 & coord_x < 200 ~ "2",
+        coord_x >=200 & coord_x <= 300 ~ "3"
+      )  %>%
+      factor(.,levels = c("1",
+                          "2",
+                          "3",
+                          'U')),
+    zone =
+      case_when(
+        coord_y <= 0 ~ "U",
+        coord_y >= 0 & coord_y < 50 ~ "C",
+        coord_y >= 50 & coord_y < 100 ~ "B",
+        coord_y >= 100 & coord_y <= 200 ~ "A"
+      ) %>%
+      factor(.,levels = c("U",
+                          "A",
+                          "B",
+                          "C"))
+  ) %>%
+  group_by(
+    date,
+    disturbance_number,
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(light_attenuation_mean, na.rm=TRUE),
+    sd_light_attenuation = sd(light_attenuation_mean, na.rm=TRUE),
+    n = n()
   )
+
+data_combined %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = mean_light_attenuation
+  ) +
+  geom_tile() +
+  theme_classic() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    values = scales::rescale(c(-100, 0, 100)),
+    name = "Mean Light\nAttenuation"
+  ) +
+  geom_text(aes(label = n), color = "black", size = 3) +  # Add n value at the center of each tile
+  facet_grid(disturbance_number ~ date)+
+  labs(
+    title = "Mean Light Attenuation by Day & Disturbance",
+    x = "Track",
+    y = "Zone"
+  )
+
+geom_text(aes(label=cnt), color='red') +
   
-  data_combined %>%
+
+
+# heat map by track and zone and day
+data_combined %>%
+  ungroup() %>%
+  group_by(
+    date,
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(mean_light_attenuation, na.rm=TRUE),
+    sd_light_attenuation = sd(sd_light_attenuation, na.rm=TRUE),
+    n = n()
+  ) %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = mean_light_attenuation
+  ) +
+  geom_tile() +
+  theme_bw() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    values = scales::rescale(c(-100, 0, 100)),
+    name = "Mean Light\nAttenuation"
+  ) +
+  facet_grid(. ~ date) +
+  labs(
+    title = "Mean Light Attenuation by Day"
+  )
+
+# heat map by track and zone 
+data_combined %>%
+  group_by(
+    date,
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(mean_light_attenuation, na.rm=TRUE),
+    sd_light_attenuation = sd(sd_light_attenuation, na.rm=TRUE)
+  ) %>%
+  group_by(
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(mean_light_attenuation, na.rm=TRUE),
+    sd_light_attenuation = sd(sd_light_attenuation, na.rm=TRUE)
+  ) %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = mean_light_attenuation
+  ) +
+  geom_tile() +
+  theme_bw() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    values = scales::rescale(c(-100, 0, 100)),
+    name = "Mean Light\nAttenuation"
+  ) +
+  labs(
+    title = "Mean Light Attenuation Across Whole Experiment"
+  )
+
+#### ceb stopped here #####
+data_combined %>%
   filter(date == '2022-10-01', disturbance_number ==1) %>%
   ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean_mean)) + geom_tile() +
   theme_light() +
