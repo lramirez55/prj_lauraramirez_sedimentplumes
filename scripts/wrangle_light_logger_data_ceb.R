@@ -566,9 +566,18 @@ data_combined <-
                 )
     ) %>%
   ungroup() %>%
-  distinct()
-
-data_combined %>%
+  distinct() %>%
+  filter(!is.na(coord_x)) %>%
+  filter(!is.na(coord_y)) %>%
+  filter(!is.na(light_attenuation_mean)) %>%
+  mutate(
+    case_when(
+      coord_x >= 0 & coord_x < 100, 
+      coord_y >= 0 & coord_y < 50
+    )
+  )
+  
+  data_combined %>%
   filter(date == '2022-10-01', disturbance_number ==1) %>%
   ggplot(aes(x=coord_x, y=coord_y, fill=light_attenuation_mean_mean)) + geom_tile() +
   theme_light() +
