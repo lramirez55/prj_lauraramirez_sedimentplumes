@@ -538,25 +538,35 @@ dev.off()
 
 #### Make attenuation heatmaps ####
 
+# CEB note that there is a coordinate for every logger, but data_light_loggers has 1 row per pole per disturbance
 load("data_coordinates.RData")
 
 data_combined <- 
   data_light_loggers %>%
-  group_by(
-    point_name, 
-    date, 
-    disturbance_number
-  ) %>%
-  summarise(
-    light_attenuation_mean_mean = 
-      mean(
-        light_attenuation_mean, 
-        na.rm = T
-      )
-  ) %>%
-  left_join(data_coordinates %>% 
-              select(coord_x, coord_y, point_name, date, disturbance_number = disturbance_id)) %>%
-  ungroup()
+  # group_by(
+  #   point_name, 
+  #   date, 
+  #   disturbance_number
+  # ) %>%
+  # summarise(
+  #   light_attenuation_mean_mean = 
+  #     mean(
+  #       light_attenuation_mean, 
+  #       na.rm = T
+  #     )
+  # ) %>%
+  left_join(
+    data_coordinates %>% 
+              select(
+                coord_x, 
+                coord_y, 
+                point_name, 
+                date, 
+                disturbance_number = disturbance_id
+                )
+    ) %>%
+  ungroup() %>%
+  distinct()
 
 data_combined %>%
   filter(date == '2022-10-01', disturbance_number ==1) %>%
