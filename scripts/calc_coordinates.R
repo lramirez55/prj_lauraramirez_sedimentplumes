@@ -69,7 +69,7 @@ data_coordinates <-
   )
 
 #### Save Coordinates to RData file ####
-save(data_coordinates, file = "data_coordinates.RData")
+save(data_coordinates, file = "../data/data_coordinates.RData")
 
 #### Plot Coordinates ####
 

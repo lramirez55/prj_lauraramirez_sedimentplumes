@@ -74,17 +74,7 @@ extract_date_times <-
       measurement_interval = total_seconds / (nrow(data) - 1)
     )
     
-    
-    
-    
-    
     # }
-    
-    
-    
-    
-    
-    
     
   }
 
@@ -539,7 +529,7 @@ dev.off()
 #### Make attenuation heatmaps ####
 
 # CEB note that there is a coordinate for every logger, but data_light_loggers has 1 row per pole per disturbance
-load("data_coordinates.RData")
+load("../data/data_coordinates.RData")
 
 data_combined <- 
   data_light_loggers %>%
@@ -573,10 +563,10 @@ data_combined <-
   mutate(
     track =
       case_when(
-        coord_x <= 0 ~ "U",
-        coord_x > 0 & coord_x < 100 ~ "1",
+        coord_x < 0 ~ "U",
+        coord_x >= 0 & coord_x < 100 ~ "3",
         coord_x >= 100 & coord_x < 200 ~ "2",
-        coord_x >=200 & coord_x <= 300 ~ "3"
+        coord_x >=200 & coord_x <= 300 ~ "1"
       )  %>%
       factor(.,levels = c("1",
                           "2",
@@ -584,10 +574,10 @@ data_combined <-
                           'U')),
     zone =
       case_when(
-        coord_y <= 0 ~ "U",
-        coord_y >= 0 & coord_y < 50 ~ "C",
+        coord_y < 0 ~ "U",
+        coord_y >= 0 & coord_y < 50 ~ "A",
         coord_y >= 50 & coord_y < 100 ~ "B",
-        coord_y >= 100 & coord_y <= 200 ~ "A"
+        coord_y >= 100 & coord_y <= 200 ~ "C"
       ) %>%
       factor(.,levels = c("U",
                           "A",
@@ -604,7 +594,18 @@ data_combined <-
     mean_light_attenuation = mean(light_attenuation_mean, na.rm=TRUE),
     sd_light_attenuation = sd(light_attenuation_mean, na.rm=TRUE),
     n = n()
-  )
+  ) %>%
+  filter(mean_light_attenuation >= 0)
+
+
+# Create a complete grid of all track and zone combinations
+grid_data <- 
+  expand.grid(
+    track = levels(data_combined$track),
+    zone = levels(data_combined$zone)
+  ) %>%
+  filter(track != "U") %>%
+  filter(zone != "U")
 
 data_combined %>%
   ggplot() +
@@ -617,7 +618,9 @@ data_combined %>%
   theme_classic() +
   scale_fill_gradientn(
     colors = c("yellow", "white", "black"),
-    values = scales::rescale(c(-100, 0, 100)),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 0.5, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 100),  # Explicit limits for the color scale
     name = "Mean Light\nAttenuation"
   ) +
   geom_text(aes(label = n), color = "black", size = 3) +  # Add n value at the center of each tile
@@ -626,10 +629,22 @@ data_combined %>%
     title = "Mean Light Attenuation by Day & Disturbance",
     x = "Track",
     y = "Zone"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
   )
+#geom_text(aes(label=cnt), color='red') +
 
-geom_text(aes(label=cnt), color='red') +
-  
 
 
 # heat map by track and zone and day
@@ -655,12 +670,27 @@ data_combined %>%
   theme_bw() +
   scale_fill_gradientn(
     colors = c("yellow", "white", "black"),
-    values = scales::rescale(c(-100, 0, 100)),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 0.5, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 100),  # Explicit limits for the color scale
     name = "Mean Light\nAttenuation"
   ) +
   facet_grid(. ~ date) +
   labs(
     title = "Mean Light Attenuation by Day"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
   )
 
 # heat map by track and zone 
@@ -692,11 +722,27 @@ data_combined %>%
   theme_bw() +
   scale_fill_gradientn(
     colors = c("yellow", "white", "black"),
-    values = scales::rescale(c(-100, 0, 100)),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 0.5, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 100),  # Explicit limits for the color scale
     name = "Mean Light\nAttenuation"
   ) +
   labs(
     title = "Mean Light Attenuation Across Whole Experiment"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed",
+    size = 1
   )
 
 #### ceb stopped here #####
