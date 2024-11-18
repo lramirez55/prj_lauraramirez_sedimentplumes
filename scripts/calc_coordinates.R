@@ -91,7 +91,10 @@ plot_light_data_for_dates <-
         data %>%
         filter(date == ymd(target_date))
       
-      p <- ggplot(plot_data) +
+      print(target_date)
+      
+      p <- 
+        ggplot(plot_data) +
         aes(
           x = -coord_x,
           y = coord_y,
@@ -121,7 +124,7 @@ plot_light_data_for_dates <-
           midpoint = 0
         ) +
         theme_classic() +
-        ggtitle(paste("Date:", date)) +
+        ggtitle(paste("Date:", target_date)) +
         facet_grid(date ~ disturbance_id)
       
       print(p)
@@ -131,7 +134,20 @@ plot_light_data_for_dates <-
     par(mfrow = c(1, 1))
   }
 
-dates <- c("2022-06-03", "2022-07-14", "2022-07-18", "2022-08-27")
+dates <- 
+  c(
+    "2022-07-14", 
+    "2022-07-18", 
+    "2022-08-27",
+    "2022-09-10",
+    "2022-09-17",
+    "2022-09-25",
+    "2022-10-01",
+    "2022-10-05",
+    "2022-10-15",
+    "2022-11-02",
+    "2022-11-09"
+    )
 plot_light_data_for_dates(data_coordinates, dates)
 
 data_coordinates %>%
