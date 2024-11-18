@@ -560,6 +560,11 @@ data_combined <-
   filter(!is.na(coord_x)) %>%
   filter(!is.na(coord_y)) %>%
   filter(!is.na(light_attenuation_mean)) %>%
+  
+  # each pole that is placed on a track or zone border should be duplicated and
+  # the x or y coordinate should be incremented up in copy and down in the other
+  # so that it will contribute to two or more cells
+  
   mutate(
     track =
       case_when(
