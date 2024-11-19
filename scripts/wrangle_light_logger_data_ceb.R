@@ -529,7 +529,86 @@ dev.off()
 #### Make attenuation heatmaps ####
 
 # CEB note that there is a coordinate for every logger, but data_light_loggers has 1 row per pole per disturbance
-load("../data/data_coordinates.RData")
+source("../scripts/calc_coordinates.R")
+#load("../data/data_coordinates.RData")
+
+# get disturbances
+
+disturbance_locations <-
+  data_coordinates %>% 
+  select(
+    coord_x, 
+    coord_y, 
+    point_name, 
+    date, 
+    disturbance_number = disturbance_id
+  ) %>%
+  filter(point_name == "X") %>%
+  filter(!str_detect(date, "2022\\-06")) %>%
+  filter(!str_detect(date, "2022\\-11\\-09")) %>%
+  mutate(
+    track =
+      case_when(
+        coord_x < 0 ~ "U",
+        coord_x >= 0 & coord_x < 100 ~ "3",
+        coord_x >= 100 & coord_x < 200 ~ "2",
+        coord_x >=200 & coord_x <= 300 ~ "1"
+      )  %>%
+      factor(.,levels = c("1",
+                          "2",
+                          "3",
+                          'U')),
+    zone =
+      case_when(
+        coord_y < 0 ~ "U",
+        coord_y >= 0 & coord_y < 50 ~ "A",
+        coord_y >= 50 & coord_y < 100 ~ "B",
+        coord_y >= 100 & coord_y <= 200 ~ "C"
+      ) %>%
+      factor(.,levels = c("U",
+                          "A",
+                          "B",
+                          "C"))
+  ) %>%
+  # define the begin and end coordinate for each disturbance (row)
+  mutate(
+    x = 
+      case_when(
+        coord_x == 0 ~ 3.5,
+        coord_x == 100 ~ 2.5,
+        coord_x == 50 ~ 2.5,
+        coord_x == 150 ~ 1.5,
+        coord_x == 250 ~ 0.5,
+        TRUE ~ NA_real_
+      ),
+    xend = 
+      case_when(
+        coord_x == 0 ~ 3.5,
+        coord_x == 100 ~ 2.5,
+        coord_x == 50 ~ 3.5,
+        coord_x == 150 ~ 2.5,
+        coord_x == 250 ~ 1.5,
+        TRUE ~ NA_real_
+      ),
+    y = 
+      case_when(
+        coord_y == 0 ~ 1.5,
+        coord_y == 100 ~ 3.5,
+        coord_y == 25 ~ 1.5,
+        coord_y == 75 ~ 2.5,
+        coord_y == 150 ~ 3.5,
+        TRUE ~ NA_real_
+      ),
+    yend = 
+      case_when(
+        coord_y == 0 ~ 1.5,
+        coord_y == 100 ~ 3.5,
+        coord_y == 25 ~ 2.5,
+        coord_y == 75 ~ 3.5,
+        coord_y == 150 ~ 4.5,
+        TRUE ~ NA_real_
+      )
+  )
 
 data_combined <- 
   data_light_loggers %>%
@@ -565,6 +644,55 @@ data_combined <-
   # the x or y coordinate should be incremented up in copy and down in the other
   # so that it will contribute to two or more cells
   
+  # Duplicate rows where coord_x is 0, 100, 200, or 300
+  mutate(
+    #duplicate_flag = coord_x %in% c(0, 100, 200, 300)
+    duplicate_flag =
+      case_when(
+        coord_x > -1 & coord_x < 1 ~ TRUE,
+        coord_x > 99 & coord_x < 101 ~ TRUE,
+        coord_x > 199 & coord_x < 201 ~ TRUE,
+        coord_x > 299 & coord_x < 301 ~ TRUE,  #CEB problem?
+        TRUE ~ FALSE
+      )
+  ) %>%
+  bind_rows(
+    filter(., duplicate_flag) %>%
+      mutate(coord_x = coord_x + 2,
+             duplicate_flag = FALSE)
+  ) %>%
+  mutate(
+    coord_x = if_else(duplicate_flag, coord_x - 2, coord_x)
+  ) %>%
+  select(-duplicate_flag) %>%
+  
+  # Duplicate rows where coord_y is 0, 50, 100, or 200
+  mutate(
+    #duplicate_flag = coord_x %in% c(0, 100, 200, 300)
+    duplicate_flag =
+      case_when(
+        coord_y > -1 & coord_y < 1 ~ TRUE,
+        coord_y > 49 & coord_y < 51 ~ TRUE,
+        coord_y > 99 & coord_y < 101 ~ TRUE,
+        coord_y > 199 & coord_y < 201 ~ TRUE,  #CEB Problem?
+        TRUE ~ FALSE
+      )
+  ) %>%
+  bind_rows(
+    filter(., duplicate_flag) %>%
+      mutate(coord_y = coord_y + 2,
+             duplicate_flag = FALSE)
+  ) %>%
+  mutate(
+    coord_y = if_else(duplicate_flag, coord_y - 2, coord_y)
+  ) %>%
+  select(-duplicate_flag) %>%
+  
+  #remove duplicated poles outside of study area
+  filter(coord_y <=200,
+         coord_x <= 300) %>% 
+  
+  # Classify the poles by track and zone
   mutate(
     track =
       case_when(
@@ -647,6 +775,24 @@ data_combined %>%
     fill = NA,
     color = "black",
     linetype = "dashed"
+  ) +
+  
+geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    size = 2
+    # linetype = "dashed"
   )
 #geom_text(aes(label=cnt), color='red') +
 
@@ -680,7 +826,7 @@ data_combined %>%
     limits = c(-100, 100),  # Explicit limits for the color scale
     name = "Mean Light\nAttenuation"
   ) +
-  facet_grid(. ~ date) +
+  facet_wrap(. ~ date) +
   labs(
     title = "Mean Light Attenuation by Day"
   ) +
@@ -696,6 +842,23 @@ data_combined %>%
     fill = NA,
     color = "black",
     linetype = "dashed"
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    size = 2
+    # linetype = "dashed"
   )
 
 # heat map by track and zone 
@@ -748,6 +911,23 @@ data_combined %>%
     color = "black",
     linetype = "dashed",
     size = 1
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    size = 2
+    # linetype = "dashed"
   )
 
 #### ceb stopped here #####
