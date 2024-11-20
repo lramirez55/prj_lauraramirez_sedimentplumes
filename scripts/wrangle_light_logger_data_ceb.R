@@ -526,7 +526,7 @@ walk(plots_light_loggers, ~ if (!is.null(.x)) print(.x))
 dev.off()
 
 
-#### Make attenuation heatmaps ####
+#### Process Data for Disturbance Locations by Zone and Track ####
 
 # CEB note that there is a coordinate for every logger, but data_light_loggers has 1 row per pole per disturbance
 source("../scripts/calc_coordinates.R")
@@ -609,6 +609,10 @@ disturbance_locations <-
         TRUE ~ NA_real_
       )
   )
+
+#### Join the Light Logger Attenuation data With their Spatial Locations ####
+
+# and convert to the zone and track categorization
 
 data_combined <- 
   data_light_loggers %>%
@@ -730,7 +734,7 @@ data_combined <-
   ) %>%
   filter(mean_light_attenuation >= 0)
 
-
+#### Store Track and Zone Boundaries into a File for Plotting ####
 # Create a complete grid of all track and zone combinations
 grid_data <- 
   expand.grid(
@@ -739,6 +743,10 @@ grid_data <-
   ) %>%
   filter(track != "U") %>%
   filter(zone != "U")
+
+
+
+#### Make attenuation heatmap for all disturbances on all days ####
 
 data_combined %>%
   ggplot() +
@@ -756,7 +764,20 @@ data_combined %>%
     limits = c(-100, 100),  # Explicit limits for the color scale
     name = "Mean Light\nAttenuation"
   ) +
-  geom_text(aes(label = n), color = "black", size = 3) +  # Add n value at the center of each tile
+  # # add number of logger poles to the plot
+  # geom_text(
+  #   aes(label = n), 
+  #   color = "black", 
+  #   size = 3
+  #   ) +  # Add n value at the center of each tile
+  # add mean attenuation to the plot
+  geom_text(
+    aes(label = 
+          round(mean_light_attenuation)
+    ), 
+    color = "black", 
+    size = 3
+  ) +  # Add n value at the center of each tile
   facet_grid(disturbance_number ~ date)+
   labs(
     title = "Mean Light Attenuation by Day & Disturbance",
@@ -776,8 +797,7 @@ data_combined %>%
     color = "black",
     linetype = "dashed"
   ) +
-  
-geom_segment(
+  geom_segment(
     data = disturbance_locations,  # Use the full grid
     aes(
       #x = as.numeric(track) - 0.5,
