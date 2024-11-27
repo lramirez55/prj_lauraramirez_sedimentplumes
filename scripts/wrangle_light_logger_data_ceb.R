@@ -748,7 +748,8 @@ grid_data <-
 
 #### Make attenuation heatmap for all disturbances on all days ####
 
-data_combined %>%
+heatmap_all <-
+  data_combined %>%
   ggplot() +
   aes(
     x = track,
@@ -816,8 +817,9 @@ data_combined %>%
   )
 #geom_text(aes(label=cnt), color='red') +
 
+heatmap_all
 
-
+#### heatmap, avg across disturbances ####
 # heat map by track and zone and day
 data_combined %>%
   ungroup() %>%
