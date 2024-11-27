@@ -2,6 +2,9 @@
 # Creating a Geospatial Map of Light Attenuation from Suspended Sediment Plumes
 #### Department of Life Sciences, Texas A&M University - Corpus Christi
 
+![462541857_521133010847678_8734832948117347700_n](https://github.com/user-attachments/assets/0caaf815-82ef-438b-ad21-903fe7ad5c62)
+
+
 <details><summary>OVERVIEW</summary>
 <p>
 
@@ -24,4 +27,4 @@ Upon the successful completion of this course, students should be able to:
 <p></p>
 
 
-![46254
+
