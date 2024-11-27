@@ -19,5 +19,6 @@ Upon the successful completion of this course, students should be able to:
 1.	Practice experimental design
 2.  Develop final paper IMRAD format
 3.  Develop final presentation for seminar
+<p></p>
 
 ![462556286_941098447910933_3315233042892916861_n](https://github.com/user-attachments/assets/0cdd1ce7-974f-4d9b-8e10-d67e0bed2c86)
