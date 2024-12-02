@@ -821,7 +821,9 @@ heatmap_all
 
 #### heatmap, avg across disturbances ####
 # heat map by track and zone and day
-data_combined %>%
+
+heatmap_day <-
+  data_combined %>%
   ungroup() %>%
   group_by(
     date,
@@ -883,7 +885,11 @@ data_combined %>%
     # linetype = "dashed"
   )
 
+heatmap_day
+
+#### Heatmap Avg across days ####
 # heat map by track and zone 
+heatmap_avg <-
 data_combined %>%
   group_by(
     date,
@@ -951,6 +957,20 @@ data_combined %>%
     size = 2
     # linetype = "dashed"
   )
+
+heatmap_avg
+
+#### save heatmaps to pdf ####
+
+pdf("../output/heatmaps.pdf")
+
+heatmap_all
+heatmap_day
+heatmap_avg
+
+dev.off()
+
+
 
 #### ceb stopped here #####
 data_combined %>%
