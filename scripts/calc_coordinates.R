@@ -1,5 +1,5 @@
 #### user defined variables ####
-data_coordinates_path <- "../data/ltloggerdatacapturesummary_l_ceb.xlsx"
+data_coordinates_path <- "../data/light_pole_metadata.xlsx"
 
 #### PACKAGES ####
 packages_used <- 
@@ -32,7 +32,6 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 data_coordinates <-
   read_excel(
-    # data_path,
     data_coordinates_path,
     na = c(
       "na",
