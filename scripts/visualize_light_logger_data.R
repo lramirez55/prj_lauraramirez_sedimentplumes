@@ -287,6 +287,7 @@ pdf("../output/pole_coordinate_maps.pdf")
   plot_light_data_for_dates(data_coordinates, dates)
 dev.off()
 
+# plot one date
 data_coordinates %>%
   # filter(date == "2022-06-03") %>%
   # filter(date == "2022-07-14") %>%

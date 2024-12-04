@@ -1,5 +1,6 @@
 #### user defined variables ####
-data_poles_path <- "../data/light_logger_metadata.xlsx"
+metadata_disturbance_path <- "../data/disturbance_experiment_metadata.xlsx"
+metadata_logger_path <- "../data/light_logger_metadata.xlsx"
 # light_logger_data_vis_path <- "../output/light_logger_plots.pdf"
 sliding_window_interval_seconds = 300
 
@@ -193,7 +194,7 @@ plan(multisession, workers = parallel::detectCores())
 data_light_logger_deployments <-
   read_excel(
     # data_path,
-    data_poles_path,
+    metadata_logger_path,
     sheet = "data_lightloggers",
     na = c(
       "na",
@@ -236,7 +237,7 @@ data_light_logger_deployments <-
 data_disturbance_times <-
   read_excel(
     # data_path,
-    data_poles_path,
+    metadata_disturbance_path,
     sheet = "disturbance_periods",
     na = c(
       "na",
