@@ -1,6 +1,7 @@
 #### user defined variables ####
 metadata_disturbance_path <- "../data/disturbance_experiment_metadata.xlsx"
 metadata_logger_path <- "../data/light_logger_metadata.xlsx"
+metadata_problematic_pole_path <- "../data/problematic_pole_metadata.xlsx"
 # light_logger_data_vis_path <- "../output/light_logger_plots.pdf"
 sliding_window_interval_seconds = 300
 
@@ -186,6 +187,14 @@ calc_light_attenuation <-
   }
 
 
+
+#### READ IN PROBLEMATIC POLE METADATA ####
+
+data_problematic_poles <-
+  read_excel(metadata_problematic_pole_path) %>%
+  clean_names()
+
+
 #### READ IN DATA ####
 
 plan(multisession, workers = parallel::detectCores())
@@ -333,6 +342,13 @@ data_light_loggers <-
     sliding_window_width = (sliding_window_interval_seconds/measurement_interval) + 1
   ) %>%
   # filter(date != "2022-06-03")
-  filter(!str_detect(date, "2022\\-06")) #LR
+  filter(!str_detect(date, "2022\\-06")) %>%
+  left_join(data_problematic_poles,
+            by = c(
+              "date",
+              "point_name" = "pole_id",
+              "disturbance_number" = "disturbance"
+            )
+  )
 
 

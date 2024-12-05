@@ -2,6 +2,7 @@
 # data_poles_path <- "../data/pole_legend.xlsx"
 light_logger_data_vis_path <- "../output/light_logger_plots.pdf"
 # sliding_window_interval_seconds = 300
+coordinate_fudge_factor_ft = 3.5
 
 #### SetWD ####
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -297,11 +298,11 @@ data_coordinates %>%
   # filter(date == "2022-09-10") %>%
   # filter(date == "2022-09-17") %>% 
   # filter(date == "2022-09-25") %>% 
-  # filter(date == "2022-10-01") %>%
+  filter(date == "2022-10-01") %>%
   # filter(date == "2022-10-05") %>%
   #filter(date == "2022-10-15") %>% # missing x and a
   #filter(date == "2022-11-02") %>% # missing x and a
-  filter(date == "2022-11-09") %>% # missing x and needs dist to dist redone
+  # filter(date == "2022-11-09") %>% # missing x and needs dist to dist redone
   
   ggplot() +
   aes(
@@ -424,18 +425,10 @@ disturbance_locations <-
 
 data_combined <- 
   data_light_loggers %>%
-  # group_by(
-  #   point_name, 
-  #   date, 
-  #   disturbance_number
-  # ) %>%
-  # summarise(
-  #   light_attenuation_mean_mean = 
-  #     mean(
-  #       light_attenuation_mean, 
-  #       na.rm = T
-  #     )
-  # ) %>%
+  # filter problematic poles, those that have obvious data issues  such as being attacked by brown sea monsters (see drone imagery on 7/18/2022)
+  filter(
+    is.na(problem)
+  ) %>%
   left_join(
     data_coordinates %>% 
       select(
@@ -446,6 +439,7 @@ data_combined <-
         disturbance_number = disturbance_id
       )
   ) %>%
+  
   ungroup() %>%
   distinct() %>%
   filter(!is.na(coord_x)) %>%
@@ -461,20 +455,20 @@ data_combined <-
     #duplicate_flag = coord_x %in% c(0, 100, 200, 300)
     duplicate_flag =
       case_when(
-        coord_x > -1 & coord_x < 1 ~ TRUE,
-        coord_x > 99 & coord_x < 101 ~ TRUE,
-        coord_x > 199 & coord_x < 201 ~ TRUE,
-        coord_x > 299 & coord_x < 301 ~ TRUE,  #CEB problem?
+        coord_x > 0-coordinate_fudge_factor_ft & coord_x < coordinate_fudge_factor_ft ~ TRUE,
+        coord_x > 100 - coordinate_fudge_factor_ft & coord_x < 100 + coordinate_fudge_factor_ft ~ TRUE,
+        coord_x > 200 - coordinate_fudge_factor_ft & coord_x < 200 + coordinate_fudge_factor_ft ~ TRUE,
+        coord_x > 300 - coordinate_fudge_factor_ft & coord_x < 300 + coordinate_fudge_factor_ft ~ TRUE,  #CEB problem?
         TRUE ~ FALSE
       )
   ) %>%
   bind_rows(
     filter(., duplicate_flag) %>%
-      mutate(coord_x = coord_x + 2,
+      mutate(coord_x = coord_x + coordinate_fudge_factor_ft,
              duplicate_flag = FALSE)
   ) %>%
   mutate(
-    coord_x = if_else(duplicate_flag, coord_x - 2, coord_x)
+    coord_x = if_else(duplicate_flag, coord_x - coordinate_fudge_factor_ft, coord_x)
   ) %>%
   select(-duplicate_flag) %>%
   
@@ -483,20 +477,20 @@ data_combined <-
     #duplicate_flag = coord_x %in% c(0, 100, 200, 300)
     duplicate_flag =
       case_when(
-        coord_y > -1 & coord_y < 1 ~ TRUE,
-        coord_y > 49 & coord_y < 51 ~ TRUE,
-        coord_y > 99 & coord_y < 101 ~ TRUE,
-        coord_y > 199 & coord_y < 201 ~ TRUE,  #CEB Problem?
+        coord_y > 0 - coordinate_fudge_factor_ft & coord_y < coordinate_fudge_factor_ft ~ TRUE,
+        coord_y > 50 - coordinate_fudge_factor_ft  & coord_y < 50 + coordinate_fudge_factor_ft ~ TRUE,
+        coord_y > 100 - coordinate_fudge_factor_ft  & coord_y < 100 + coordinate_fudge_factor_ft  ~ TRUE,
+        coord_y > 200 - coordinate_fudge_factor_ft & coord_y < 200 + coordinate_fudge_factor_ft ~ TRUE,  #CEB Problem?
         TRUE ~ FALSE
       )
   ) %>%
   bind_rows(
     filter(., duplicate_flag) %>%
-      mutate(coord_y = coord_y + 2,
+      mutate(coord_y = coord_y + coordinate_fudge_factor_ft,
              duplicate_flag = FALSE)
   ) %>%
   mutate(
-    coord_y = if_else(duplicate_flag, coord_y - 2, coord_y)
+    coord_y = if_else(duplicate_flag, coord_y - coordinate_fudge_factor_ft, coord_y)
   ) %>%
   select(-duplicate_flag) %>%
   
@@ -620,7 +614,7 @@ heatmap_all <-
     ),
     inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
     color = "brown",
-    size = 2
+    linewidth = 2
     # linetype = "dashed"
   )
 #geom_text(aes(label=cnt), color='red') +
