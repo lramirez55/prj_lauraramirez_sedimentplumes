@@ -425,7 +425,120 @@ disturbance_locations <-
 
 data_combined <- 
   data_light_loggers %>%
-  # filter problematic poles, those that have obvious data issues  such as being attacked by brown sea monsters (see drone imagery on 7/18/2022)
+  left_join(
+    data_coordinates %>% 
+      select(
+        coord_x, 
+        coord_y, 
+        point_name, 
+        date, 
+        disturbance_number = disturbance_id
+      )
+  ) %>%
+  
+  ungroup() %>%
+  distinct() %>%
+  filter(!is.na(coord_x)) %>%
+  filter(!is.na(coord_y)) %>%
+  filter(!is.na(light_attenuation_mean)) %>%
+  
+  # each pole that is placed on a track or zone border should be duplicated and
+  # the x or y coordinate should be incremented up in copy and down in the other
+  # so that it will contribute to two or more cells
+  
+  # Duplicate rows where coord_x is 0, 100, 200, or 300
+  mutate(
+    #duplicate_flag = coord_x %in% c(0, 100, 200, 300)
+    duplicate_flag =
+      case_when(
+        coord_x > 0-coordinate_fudge_factor_ft & coord_x < coordinate_fudge_factor_ft ~ TRUE,
+        coord_x > 100 - coordinate_fudge_factor_ft & coord_x < 100 + coordinate_fudge_factor_ft ~ TRUE,
+        coord_x > 200 - coordinate_fudge_factor_ft & coord_x < 200 + coordinate_fudge_factor_ft ~ TRUE,
+        coord_x > 300 - coordinate_fudge_factor_ft & coord_x < 300 + coordinate_fudge_factor_ft ~ TRUE,  #CEB problem?
+        TRUE ~ FALSE
+      )
+  ) %>%
+  bind_rows(
+    filter(., duplicate_flag) %>%
+      mutate(coord_x = coord_x + coordinate_fudge_factor_ft,
+             duplicate_flag = FALSE)
+  ) %>%
+  mutate(
+    coord_x = if_else(duplicate_flag, coord_x - coordinate_fudge_factor_ft, coord_x)
+  ) %>%
+  select(-duplicate_flag) %>%
+  
+  # Duplicate rows where coord_y is 0, 50, 100, or 200
+  mutate(
+    #duplicate_flag = coord_x %in% c(0, 100, 200, 300)
+    duplicate_flag =
+      case_when(
+        coord_y > 0 - coordinate_fudge_factor_ft & coord_y < coordinate_fudge_factor_ft ~ TRUE,
+        coord_y > 50 - coordinate_fudge_factor_ft  & coord_y < 50 + coordinate_fudge_factor_ft ~ TRUE,
+        coord_y > 100 - coordinate_fudge_factor_ft  & coord_y < 100 + coordinate_fudge_factor_ft  ~ TRUE,
+        coord_y > 200 - coordinate_fudge_factor_ft & coord_y < 200 + coordinate_fudge_factor_ft ~ TRUE,  #CEB Problem?
+        TRUE ~ FALSE
+      )
+  ) %>%
+  bind_rows(
+    filter(., duplicate_flag) %>%
+      mutate(coord_y = coord_y + coordinate_fudge_factor_ft,
+             duplicate_flag = FALSE)
+  ) %>%
+  mutate(
+    coord_y = if_else(duplicate_flag, coord_y - coordinate_fudge_factor_ft, coord_y)
+  ) %>%
+  select(-duplicate_flag) %>%
+  
+  #remove duplicated poles outside of study area
+  filter(coord_y <=200,
+         coord_x <= 300) %>% 
+  
+  # Classify the poles by track and zone
+  mutate(
+    track =
+      case_when(
+        coord_x < 0 ~ "U",
+        coord_x >= 0 & coord_x < 100 ~ "3",
+        coord_x >= 100 & coord_x < 200 ~ "2",
+        coord_x >=200 & coord_x <= 300 ~ "1"
+      )  %>%
+      factor(.,levels = c("1",
+                          "2",
+                          "3",
+                          'U')),
+    zone =
+      case_when(
+        coord_y < 0 ~ "U",
+        coord_y >= 0 & coord_y < 50 ~ "A",
+        coord_y >= 50 & coord_y < 100 ~ "B",
+        coord_y >= 100 & coord_y <= 200 ~ "C"
+      ) %>%
+      factor(.,levels = c("U",
+                          "A",
+                          "B",
+                          "C"))
+  ) %>%
+  group_by(
+    date,
+    disturbance_number,
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(light_attenuation_mean, na.rm=TRUE),
+    sd_light_attenuation = sd(light_attenuation_mean, na.rm=TRUE),
+    n = n(),
+    sum_light_attenuation = sum(light_attenuation_mean, na.rm=TRUE)
+  ) %>%
+  filter(mean_light_attenuation >= 0)
+
+#### filter problematic poles, ####
+
+#those that have obvious data issues  such as being attacked by brown sea monsters (see drone imagery on 7/18/2022)
+
+data_combined_filtered <- 
+  data_light_loggers %>%
   filter(
     is.na(problem)
   ) %>%
@@ -532,7 +645,8 @@ data_combined <-
   summarize(
     mean_light_attenuation = mean(light_attenuation_mean, na.rm=TRUE),
     sd_light_attenuation = sd(light_attenuation_mean, na.rm=TRUE),
-    n = n()
+    n = n(),
+    sum_light_attenuation = sum(light_attenuation_mean, na.rm=TRUE)
   ) %>%
   filter(mean_light_attenuation >= 0)
 
@@ -548,9 +662,9 @@ grid_data <-
 
 
 
-#### Make attenuation heatmap for all disturbances on all days ####
+#### Make mean attenuation heatmap for all disturbances on all days ####
 
-heatmap_all <-
+heatmap_all_mean <-
   data_combined %>%
   ggplot() +
   aes(
@@ -583,7 +697,7 @@ heatmap_all <-
   ) +  # Add n value at the center of each tile
   facet_grid(disturbance_number ~ date)+
   labs(
-    title = "Mean Light Attenuation by Day & Disturbance",
+    title = "Mean Light Attenuation by Day & Disturbance (Unfiltered)",
     x = "Track",
     y = "Zone"
   ) +
@@ -619,12 +733,231 @@ heatmap_all <-
   )
 #geom_text(aes(label=cnt), color='red') +
 
-heatmap_all
+heatmap_all_mean
+
+#### Make sum attenuation heatmap for all disturbances on all days ####
+
+heatmap_all_sum <-
+  data_combined %>%
+  ggplot() +
+  aes(
+    x = track,
+    y = zone, 
+    fill = sum_light_attenuation
+  ) +
+  geom_tile() +
+  theme_classic() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 100/400, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 300),  # Explicit limits for the color scale
+    name = "Summed Light\nAttenuation"
+  ) +
+  # # add number of logger poles to the plot
+  # geom_text(
+  #   aes(label = n), 
+  #   color = "black", 
+  #   size = 3
+  #   ) +  # Add n value at the center of each tile
+  # add mean attenuation to the plot
+  geom_text(
+    aes(label = 
+          round(n)
+    ), 
+    color = "black", 
+    size = 3
+  ) +  # Add n value at the center of each tile
+  facet_grid(disturbance_number ~ date)+
+  labs(
+    title = "Summed Light Attenuation by Day & Disturbance (Unfiltered)",
+    x = "Track",
+    y = "Zone"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    linewidth = 2
+    # linetype = "dashed"
+  )
+#geom_text(aes(label=cnt), color='red') +
+
+heatmap_all_sum
+
+#### Make mean attenuation heatmap for all disturbances on all days Filtered####
+
+
+heatmap_all_mean_filtered <-
+  data_combined_filtered %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = mean_light_attenuation
+  ) +
+  geom_tile() +
+  theme_classic() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 0.5, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 100),  # Explicit limits for the color scale
+    name = "Mean Light\nAttenuation"
+  ) +
+  # # add number of logger poles to the plot
+  # geom_text(
+  #   aes(label = n), 
+  #   color = "black", 
+  #   size = 3
+  #   ) +  # Add n value at the center of each tile
+  # add mean attenuation to the plot
+  geom_text(
+    aes(label = 
+          round(mean_light_attenuation)
+    ), 
+    color = "black", 
+    size = 3
+  ) +  # Add n value at the center of each tile
+  facet_grid(disturbance_number ~ date)+
+  labs(
+    title = "Mean Light Attenuation by Day & Disturbance (Filtered)",
+    x = "Track",
+    y = "Zone"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    linewidth = 2
+    # linetype = "dashed"
+  )
+
+heatmap_all_mean_filtered
+
+#### Make sum attenuation heatmap for all disturbances on all days Filtered####
+
+
+heatmap_all_sum_filtered <-
+  data_combined_filtered %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = sum_light_attenuation
+  ) +
+  geom_tile() +
+  theme_classic() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 100/400, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 300),  # Explicit limits for the color scale
+    name = "Summed Light\nAttenuation"
+  ) +
+  # # add number of logger poles to the plot
+  # geom_text(
+  #   aes(label = n), 
+  #   color = "black", 
+  #   size = 3
+  #   ) +  # Add n value at the center of each tile
+  # add mean attenuation to the plot
+  geom_text(
+    aes(label = 
+          round(n)
+    ), 
+    color = "black", 
+    size = 3
+  ) +  # Add n value at the center of each tile
+  facet_grid(disturbance_number ~ date)+
+  labs(
+    title = "Summed Light Attenuation by Day & Disturbance (Filtered)",
+    x = "Track",
+    y = "Zone"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    linewidth = 2
+    # linetype = "dashed"
+  )
+
+heatmap_all_sum_filtered
 
 #### heatmap, avg across disturbances ####
 # heat map by track and zone and day
 
-heatmap_day <-
+heatmap_day_mean <-
   data_combined %>%
   ungroup() %>%
   group_by(
@@ -654,7 +987,7 @@ heatmap_day <-
   ) +
   facet_wrap(. ~ date) +
   labs(
-    title = "Mean Light Attenuation by Day"
+    title = "Mean Light Attenuation by Day (Unfiltered)"
   ) +
   geom_rect(
     data = grid_data,  # Use the full grid
@@ -687,7 +1020,227 @@ heatmap_day <-
     # linetype = "dashed"
   )
 
-heatmap_day
+heatmap_day_mean
+
+#### heatmap, summed across disturbances ####
+# heat map by track and zone and day
+
+heatmap_day_sum <-
+  data_combined %>%
+  ungroup() %>%
+  group_by(
+    date,
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(mean_light_attenuation, na.rm=TRUE),
+    sd_light_attenuation = sd(sd_light_attenuation, na.rm=TRUE),
+    n = sum(n, na.rm=TRUE),
+    sum_light_attenuation = sum(sum_light_attenuation, na.rm=TRUE)
+  ) %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = sum_light_attenuation
+  ) +
+  geom_tile() +
+  theme_bw() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 100/700, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 600),  # Explicit limits for the color scale
+    name = "Summed Light\nAttenuation"
+  ) +
+  geom_text(
+    aes(label = 
+          round(n)
+    ), 
+    color = "black", 
+    size = 3
+  ) +
+  facet_wrap(. ~ date) +
+  labs(
+    title = "Summed Light Attenuation by Day (Unfiltered)"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    size = 2
+    # linetype = "dashed"
+  )
+
+heatmap_day_sum
+
+#### heatmap, avg across disturbances filtered ####
+
+
+heatmap_day_filtered <-
+  data_combined_filtered %>%
+  ungroup() %>%
+  group_by(
+    date,
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(mean_light_attenuation, na.rm=TRUE),
+    sd_light_attenuation = sd(sd_light_attenuation, na.rm=TRUE),
+    n = n()
+  ) %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = mean_light_attenuation
+  ) +
+  geom_tile() +
+  theme_bw() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 0.5, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 100),  # Explicit limits for the color scale
+    name = "Mean Light\nAttenuation"
+  ) +
+  facet_wrap(. ~ date) +
+  labs(
+    title = "Mean Light Attenuation by Day (Filtered)"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    size = 2
+    # linetype = "dashed"
+  )
+
+heatmap_day_filtered
+
+#### heatmap, summed across disturbances filtered ####
+# heat map by track and zone and day
+
+heatmap_day_sum_filtered <-
+  data_combined_filtered %>%
+  ungroup() %>%
+  group_by(
+    date,
+    track,
+    zone
+  ) %>%
+  summarize(
+    mean_light_attenuation = mean(mean_light_attenuation, na.rm=TRUE),
+    sd_light_attenuation = sd(sd_light_attenuation, na.rm=TRUE),
+    n = sum(n, na.rm=TRUE),
+    sum_light_attenuation = sum(sum_light_attenuation, na.rm=TRUE)
+  ) %>%
+  ggplot() +
+  aes(
+    x = track,
+    y=zone, 
+    fill = sum_light_attenuation
+  ) +
+  geom_tile() +
+  theme_bw() +
+  scale_fill_gradientn(
+    colors = c("yellow", "white", "black"),
+    # values = scales::rescale(c(-100, 0, 100)),
+    values = c(0, 100/700, 1),  # Relative positions for -100, 0, 100
+    limits = c(-100, 600),  # Explicit limits for the color scale
+    name = "Summed Light\nAttenuation"
+  ) +
+  geom_text(
+    aes(label = 
+          round(n)
+    ), 
+    color = "black", 
+    size = 3
+  ) +
+  facet_wrap(. ~ date) +
+  labs(
+    title = "Summed Light Attenuation by Day (Filtered)"
+  ) +
+  geom_rect(
+    data = grid_data,  # Use the full grid
+    aes(
+      xmin = as.numeric(track) - 0.5,
+      xmax = as.numeric(track) + 0.5,
+      ymin = as.numeric(zone) - 0.5,
+      ymax = as.numeric(zone) + 0.5
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    fill = NA,
+    color = "black",
+    linetype = "dashed"
+  ) +
+  geom_segment(
+    data = disturbance_locations,  # Use the full grid
+    aes(
+      #x = as.numeric(track) - 0.5,
+      #y = as.numeric(zone) + 0.5,
+      #xend = as.numeric(track) + 0.5,
+      #yend = as.numeric(zone) + 0.5
+      x = x,
+      y = y,
+      xend = xend,
+      yend = yend
+    ),
+    inherit.aes = FALSE,  # Prevent inheriting fill and other aesthetics
+    color = "brown",
+    size = 2
+    # linetype = "dashed"
+  )
+
+heatmap_day_sum_filtered
 
 #### Heatmap Avg across days ####
 # heat map by track and zone 
@@ -766,7 +1319,14 @@ heatmap_avg
 
 pdf("../output/heatmaps.pdf")
 
-heatmap_all
+heatmap_all_mean
+heatmap_all_sum
+heatmap_all_mean_filtered
+heatmap_all_sum_filtered
+heatmap_day_sum
+heatmap_day_filtered
+heatmap_day_mean
+heatmap_day_sum_filtered
 heatmap_day
 heatmap_avg
 
